@@ -1,13 +1,5 @@
 #include "devDriver_infraActDetect.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "driver/rmt.h"
 #include "driver/periph_ctrl.h"
 #include "soc/rmt_reg.h"

@@ -18,6 +18,13 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
+#define LV_FNUM_SLIDER_ALCS_R			0
+#define LV_FNUM_SLIDER_ALCS_G			1
+#define LV_FNUM_SLIDER_ALCS_B		    2
+
+#define LV_FNUM_CB_ALCS_AUTOMATIC		0
+#define LV_FNUM_CB_ALCS_BRE_IF			1
+#define LV_FNUM_CB_ALCS_SETALL_IF		2
 
 /**********************
  *      TYPEDEFS
@@ -29,8 +36,11 @@ extern "C" {
 void appUiElementSet_upgradeAvailable(bool val);
 
 void lvGui_businessMenu_settingSet(lv_obj_t * obj_Parent);
-
 void guiDispTimeOut_pageSettingSet(void);
+
+void paramSettingGet_epidCyName(char *nameStr);
+
+void mwifiApp_atmosLightColorCfg_boardcastNotice(void);
 
 /**
  * Create a test screen with a lot objects and apply the given theme on them

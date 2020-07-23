@@ -4,19 +4,13 @@
 
 #include "driver/i2c.h"
 
-/* freertos includes */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
 #include "esp_log.h"
 
+#include "devDriver_temperatureMeasure.h"
+
 #define SENSOR_DS18B20_DATA_PIN						(25)
-#define SENSOR_DS18B20_PINCFG_PUTO()				gpio_set_direction(SENSOR_DS18B20_DATA_PIN, GPIO_MODE_OUTPUT)		
-#define SENSOR_DS18B20_PINCFG_PUTI()				gpio_set_direction(SENSOR_DS18B20_DATA_PIN, GPIO_MODE_INPUT)
+#define SENSOR_DS18B20_PINCFG_PUTO()				gpio_set_direction(SENSOR_DS18B20_DATA_PIN, GPIO_MODE_OUTPUT);gpio_set_pull_mode(SENSOR_DS18B20_DATA_PIN, GPIO_PULLUP_ONLY)	
+#define SENSOR_DS18B20_PINCFG_PUTI()				gpio_set_direction(SENSOR_DS18B20_DATA_PIN, GPIO_MODE_INPUT);gpio_set_pull_mode(SENSOR_DS18B20_DATA_PIN, GPIO_PULLUP_ONLY)
 #define SENSOR_DS18B20_DATA_SET(x)					gpio_set_level(SENSOR_DS18B20_DATA_PIN, (uint32_t)x)
 #define SENSOR_DS18B20_DATA_GET()					gpio_get_level(SENSOR_DS18B20_DATA_PIN)
 
@@ -52,6 +46,8 @@ static uint8_t infrared_currentOpreatRes = 0; //
 static uint8_t infrared_currentOpreatinsert = 0;
 
 static uint8_t infrared_timerTrigIstNumTab[USRAPP_VALDEFINE_TRIGTIMER_NUM] = {0};
+
+static float infraredTemprature_ds18b20 = 0.0F;
 
 static volatile uint16_t infraredAct_timeCounter = 0;
 static volatile uint16_t ds18b20_loopDetect_timeCounter = 0;
@@ -444,7 +440,7 @@ static bool sensorDs18b20_opreat_rst(void){
 
 	SENSOR_DS18B20_PINCFG_PUTI();
 	ret = SENSOR_DS18B20_DATA_GET();
-	ets_delay_us(400);
+	ets_delay_us(450);
 
 	SENSOR_DS18B20_PINCFG_PUTO();
 	SENSOR_DS18B20_DATA_SET(1);
@@ -456,7 +452,7 @@ static void sensorDs18b20_opreat_writeBit(bool dBit){
 
 	SENSOR_DS18B20_PINCFG_PUTO();
 	SENSOR_DS18B20_DATA_SET(0);
-	ets_delay_us(2);
+	ets_delay_us(1);
 	SENSOR_DS18B20_DATA_SET((uint32_t)dBit);
 	ets_delay_us(60);
 	SENSOR_DS18B20_DATA_SET(1);	
@@ -479,13 +475,13 @@ static bool sensorDs18b20_opreat_readBit(void)
 
 	SENSOR_DS18B20_PINCFG_PUTO();
 	SENSOR_DS18B20_DATA_SET(0);
-	ets_delay_us(2);
+	ets_delay_us(1);
 	SENSOR_DS18B20_DATA_SET(1);
-	ets_delay_us(6);
+	ets_delay_us(4);
 
 	SENSOR_DS18B20_PINCFG_PUTI();
 	dBit = SENSOR_DS18B20_DATA_GET();
-	ets_delay_us(40);
+	ets_delay_us(45);
 
 	SENSOR_DS18B20_PINCFG_PUTO();
 	SENSOR_DS18B20_DATA_SET(1);
@@ -542,7 +538,7 @@ static uint16_t sensorDs18b20_opreat_tempRead(void){
 		 temp |= a;
 		 temp = ((~temp) + 1);
 		 ftemp = temp * 0.0625F * 100.0F + 0.5F;
-		 t = ftemp;
+		 t = (uint16_t)ftemp;
 		 flag = true;
 	}
 	else
@@ -550,6 +546,12 @@ static uint16_t sensorDs18b20_opreat_tempRead(void){
 	   	ftemp = ((b * 256) + a) * 0.0625F;
 	    t = (uint16_t)(ftemp * 100.0F + 0.5F);
 		flag = false;
+	}
+
+	if(ftemp > 60 || ftemp < -20);
+	else{
+
+		infraredTemprature_ds18b20 = ftemp;
 	}
 
 	ESP_LOGI(TAG, "ds18b20 temp:%.1f c\n", ftemp);
@@ -726,6 +728,26 @@ static void devDriverBussiness_infraredSwitch_periphDeinit(void){
 	gpio_reset_pin( DEVDRIVER_INFRARED_GPIO_HXD019D_BUSY);
 }
 
+float devDriverBussiness_tempMeasureByDs18b20_get(void){
+
+	return infraredTemprature_ds18b20;
+}
+
+void devDriverBussiness_tempMeasureByDs18b20_getByHex(stt_devTempParam2Hex *param){
+
+	const float decimal_prtCoefficient = 100.0F; //小数计算偏移倍数 --100倍对应十进制两位
+	float tempratureCaculate_temp = infraredTemprature_ds18b20 + DEVDRIVER_TEMPERATUREMEASURE_NEGATIVE_BOUND;
+	
+	uint16_t dataInteger_prt = (uint16_t)tempratureCaculate_temp & 0xFFFF;
+	uint8_t dataDecimal_prt = (uint8_t)((tempratureCaculate_temp - (float)dataInteger_prt) * decimal_prtCoefficient);
+
+	if(infraredTemprature_ds18b20 < 0.0F)dataDecimal_prt = 99 - dataDecimal_prt; //针对负数处理
+
+	param->integer_h8bit = (uint8_t)((dataInteger_prt & 0xFF00) >> 8);
+	param->integer_l8bit = (uint8_t)((dataInteger_prt & 0x00FF) >> 0);
+	param->decimal_8bit = dataDecimal_prt;
+}
+
 void devDriverBussiness_infraredSwitch_timerUpTrigIstTabSet(uint8_t istTab[USRAPP_VALDEFINE_TRIGTIMER_NUM], bool nvsRecord_IF){
 
 	memcpy(infrared_timerTrigIstNumTab, istTab, sizeof(uint8_t) * USRAPP_VALDEFINE_TRIGTIMER_NUM);
@@ -762,7 +784,8 @@ void devDriverBussiness_infraredSwitch_moudleInit(void){
 	if(swCurrentDevType != devTypeDef_infrared)return;
 	if(devDriver_moudleInitialize_Flg)return;
 
-	esp_log_level_set(TAG, ESP_LOG_INFO);
+//	esp_log_level_set(TAG, ESP_LOG_INFO);
+	esp_log_level_set(TAG, ESP_LOG_WARN);
 
 	devDriverBussiness_infraredSwitch_periphInit();
 	

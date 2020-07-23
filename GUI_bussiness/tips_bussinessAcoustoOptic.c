@@ -1,14 +1,5 @@
 #include "tips_bussinessAcoustoOptic.h"
 
-/* freertos includes */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "mdf_common.h"
 #include "mwifi.h"
 #include "mlink.h"
@@ -25,33 +16,22 @@
 
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
 
- #define SOCKETS_SPECIFICATION_AMERICA		0x0A //美规
- #define SOCKETS_SPECIFICATION_BRITISH		0x0B //英规
- #define SOCKETS_SPECIFICATION_GENERAL		0x0C //常规
- #define SOCKETS_SPECIFICATION_SAFRICA		0x0D //南非
-
- #define DEV_SOCKET_SPECIFICATION			SOCKETS_SPECIFICATION_AMERICA
-
  #define DEV_SOCKET_STATUS_TIPS_PIN_R	   (32)
  #define DEV_SOCKET_STATUS_TIPS_PIN_B	   (33)
 
  #define tipsSocket_LR_set(x)			   gpio_set_level(DEV_SOCKET_STATUS_TIPS_PIN_R, x)
  #define tipsSocket_LB_set(x)			   gpio_set_level(DEV_SOCKET_STATUS_TIPS_PIN_B, x)
 
- #if(DEV_SOCKET_SPECIFICATION == SOCKETS_SPECIFICATION_AMERICA)
+ #define tipsSocketAmerica_LR_ON()		   tipsSocket_LR_set(1);tipsSocket_LB_set(0)
+ #define tipsSocketAmerica_LB_ON()		   tipsSocket_LR_set(0);tipsSocket_LB_set(1)
+ #define tipsSocketAmerica_ALL_OFF()	   tipsSocket_LR_set(0);tipsSocket_LB_set(0)
 
-  #define tipsSocket_LR_ON()			   tipsSocket_LR_set(1);tipsSocket_LB_set(0)
-  #define tipsSocket_LB_ON()			   tipsSocket_LR_set(0);tipsSocket_LB_set(1)
-  #define tipsSocket_ALL_OFF()			   tipsSocket_LR_set(0);tipsSocket_LB_set(0)
+ #define tipsSocketGeneral_LR_ON()		   tipsSocket_LR_set(0);tipsSocket_LB_set(1)
+ #define tipsSocketGeneral_LB_ON()		   tipsSocket_LR_set(1);tipsSocket_LB_set(0)
+ #define tipsSocketGeneral_ALL_ON()		   tipsSocket_LR_set(0);tipsSocket_LB_set(0)
+ #define tipsSocketGeneral_ALL_OFF()	   tipsSocket_LR_set(1);tipsSocket_LB_set(1)
 
- #elif(DEV_SOCKET_SPECIFICATION == SOCKETS_SPECIFICATION_GENERAL)
-
-  #define tipsSocket_LR_ON()			   tipsSocket_LR_set(0);tipsSocket_LB_set(1)
-  #define tipsSocket_LB_ON()			   tipsSocket_LR_set(1);tipsSocket_LB_set(0)
-  #define tipsSocket_ALL_ON()			   tipsSocket_LR_set(0);tipsSocket_LB_set(0)
-  #define tipsSocket_ALL_OFF()			   tipsSocket_LR_set(1);tipsSocket_LB_set(1)
-  
- #endif
+ enumSpecification_socketType devSocketSpecification = socketTypeSpecifi_America;
 
  enum{
  
@@ -75,6 +55,14 @@
 static enum_tipsNetworkStatus 			tipsNetworkStatus 			 = ntStatus_noneNet;
 static enum_tipsDevNoneScrRunningStatus tipsDevNoneScr_runningStatus = tipsRunningStatus_normal;
 static uint16_t 						tipsAbnormalCounter 		 = 0;
+
+#if(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
+
+ void devSocketAttrOpreat_specificationSet(enumSpecification_socketType spe){
+
+	devSocketSpecification = spe;
+ }
+#endif
 
 void devTipsByLed_driverReales(void){
 
@@ -196,84 +184,86 @@ void devTipsByLed_driverReales(void){
 	static uint8_t colorCounter = 0;
 	const uint8_t colorPeriod = 100;
 
- #if(DEV_SOCKET_SPECIFICATION == SOCKETS_SPECIFICATION_AMERICA)
-	if(colorCounter > colorPeriod)colorCounter = 0;
-	else{
+ 	if(socketTypeSpecifi_America == devSocketSpecification){ //美规
 
-		colorCounter ++;
+		if(colorCounter > colorPeriod)colorCounter = 0;
+		else{
 
-		switch(devSocketLedTipsAction_param){
-			
-			case devSocketLedTipsAct_mode_R:{
+			colorCounter ++;
 
-				tipsSocket_LR_ON();
-
-			}break;
-			
-			case devSocketLedTipsAct_mode_B:{
-
-				tipsSocket_LB_ON();
-
-			}break;
-			
-			case devSocketLedTipsAct_mode_RB:{
-
-				if(colorCounter % 2){
-
-					tipsSocket_LB_ON();
-				}
-				else
-				{
-					tipsSocket_LR_ON();
-				}
+			switch(devSocketLedTipsAction_param){
 				
-			}break;
+				case devSocketLedTipsAct_mode_R:{
 
-			case devSocketLedTipsAct_mode_null:
-			default:{
+					tipsSocketAmerica_LR_ON();
 
-				tipsSocket_ALL_OFF();
+				}break;
+				
+				case devSocketLedTipsAct_mode_B:{
 
-			}break;
+					tipsSocketAmerica_LB_ON();
+
+				}break;
+				
+				case devSocketLedTipsAct_mode_RB:{
+
+					if(colorCounter % 2){
+
+						tipsSocketAmerica_LB_ON();
+					}
+					else
+					{
+						tipsSocketAmerica_LR_ON();
+					}
+					
+				}break;
+
+				case devSocketLedTipsAct_mode_null:
+				default:{
+
+					tipsSocketAmerica_ALL_OFF();
+
+				}break;
+			}
 		}
 	}
-	
- #elif(DEV_SOCKET_SPECIFICATION == SOCKETS_SPECIFICATION_GENERAL)
-	if(colorCounter > colorPeriod)colorCounter = 0;
-	else{
+	else
+	if(socketTypeSpecifi_General == devSocketSpecification){ //常规
 
-		colorCounter ++;
+		if(colorCounter > colorPeriod)colorCounter = 0;
+		else{
 
-		switch(devSocketLedTipsAction_param){
+			colorCounter ++;
 
-			case devSocketLedTipsAct_mode_R:{
+			switch(devSocketLedTipsAction_param){
 
-				tipsSocket_LR_ON();
+				case devSocketLedTipsAct_mode_R:{
 
-			}break;
+					tipsSocketGeneral_LR_ON();
 
-			case devSocketLedTipsAct_mode_B:{
+				}break;
 
-				tipsSocket_LB_ON();
+				case devSocketLedTipsAct_mode_B:{
 
-			}break;
+					tipsSocketGeneral_LB_ON();
 
-			case devSocketLedTipsAct_mode_RB:{
+				}break;
 
-				tipsSocket_ALL_ON();
+				case devSocketLedTipsAct_mode_RB:{
 
-			}break;
+					tipsSocketGeneral_ALL_ON();
 
-			case devSocketLedTipsAct_mode_null:
-			default:{
+				}break;
 
-				tipsSocket_ALL_OFF();
+				case devSocketLedTipsAct_mode_null:
+				default:{
 
-			}break;
+					tipsSocketGeneral_ALL_OFF();
+
+				}break;
+			}
 		}
 	}
-
- #endif
 
 	switch(tipsDevNoneScr_runningStatus){
 

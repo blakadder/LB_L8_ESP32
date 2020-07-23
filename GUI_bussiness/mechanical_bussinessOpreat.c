@@ -1,14 +1,5 @@
 #include "mechanical_bussinessOpreat.h"
 
-/* freertos includes */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "mdf_common.h"
 #include "mwifi.h"
 #include "mlink.h"
@@ -24,6 +15,9 @@
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
 
  #define DEV_SOCKET_USR_KEY_PIN			(4)	
+
+ #define DEV_SOCKET_USR_DEVDEF_PIN_C0	(19)
+ #define DEV_SOCKET_USR_DEVDEF_PIN_C1	(18)
 
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_MOUDLE)
 
@@ -59,6 +53,11 @@ static uint8_t  buttonContinue_rcd = 1;
 
 static param_combinationFunPreTrig param_combinationFunTrigger_3S1L = {0},
 								   param_combinationFunTrigger_3S5S = {0};
+
+#if(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
+	
+ void devSocketAttrOpreat_specificationSet(enumSpecification_socketType spe);
+#endif
 
 static void mechOpreatDevDatapoint_opreatNormal(uint8_t devCtrlVal){
 
@@ -156,7 +155,7 @@ static void mechOpreatDevDatapoint_opreatNormal(uint8_t devCtrlVal){
 
 	if(devOpReserve_flg){
 
-		currentDev_dataPointSet(&devDataPoint_setTemp, true, true, true, true);
+		currentDev_dataPointSet(&devDataPoint_setTemp, true, true, true, true, true);
 	}
 }
 
@@ -174,7 +173,7 @@ static void mechOpreatUsrKey_opreatShort(void){
 //	devDataPoint_temp.devType_infrared.devInfrared_actCmd = optFlg;
 //	devDataPoint_temp.devType_infrared.devInfrared_irIst = 127;
 
-//	currentDev_dataPointSet(&devDataPoint_temp, false, false, true, true);
+//	currentDev_dataPointSet(&devDataPoint_temp, false, false, true, true, true);
 
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
 
@@ -184,7 +183,7 @@ static void mechOpreatUsrKey_opreatShort(void){
 	currentDev_dataPointGet(&devDataPoint_getTemp);
 	devDataPoint_setTemp.devType_socket.devSocket_opSw =\
 		!devDataPoint_getTemp.devType_socket.devSocket_opSw;
-	currentDev_dataPointSet(&devDataPoint_setTemp, true, true, true, true);
+	currentDev_dataPointSet(&devDataPoint_setTemp, true, true, true, true, true);
 
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_MOUDLE)
 
@@ -202,6 +201,7 @@ static void mechOpreatUsrKey_opreatLongA(void){
 #endif
 
 	mdf_info_erase("ESP-MDF");
+	devSystemInfoLocalRecord_allErase();
 	usrApplication_systemRestartTrig(3);
 	devTipsStatusRunning_abnormalTrig(tipsRunningStatus_funcTrig, 2);
 	devBeepTips_trig(4, 8, 500, 100, 2);
@@ -220,12 +220,18 @@ static void mechOpreatUsrKey_opreatLongB(void){
 	devBeepTips_trig(4, 8, 100, 40, 2);
 }
 
-static uint8_t mechOpreatDetect_dcodeValGet(void){
+static uint8_t mechOpreatDetect_dcodeValGet(void){ //低电平为 1，高电平为 0
 
 	uint8_t valDcode = 0;
 
 #if(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_INFRARED)
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
+	
+	if(!gpio_get_level(DEV_SOCKET_USR_DEVDEF_PIN_C0))valDcode |= 1 << 0;
+	else valDcode &= ~(1 << 0);
+
+	if(!gpio_get_level(DEV_SOCKET_USR_DEVDEF_PIN_C1))valDcode |= 1 << 1;
+	else valDcode &= ~(1 << 1);
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_MOUDLE)
 
 	if(!gpio_get_level(DEV_MOUDLE_DCODE_6_PIN))valDcode |= 1 << 0;
@@ -288,6 +294,30 @@ static void mechOpreatDetect_dcodeScanning(void){
 
 #if(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_INFRARED)
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
+	if(val_CHG){
+
+		val_CHG	= false;
+
+		switch(val_dcodeCfm){
+
+			case 0:{ //美规
+
+				devSocketAttrOpreat_specificationSet(socketTypeSpecifi_America);
+
+			}break;
+
+			case 2:{ //常规
+
+				devSocketAttrOpreat_specificationSet(socketTypeSpecifi_General);
+
+			}break;
+
+			default:{}break;
+		}
+
+		printf("devSocket type defCode chg:%02X.\n", val_dcode_Local);
+	}
+	
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_MOUDLE)
 
 	if(val_CHG){
@@ -728,7 +758,16 @@ void deviceTypeDefineByDcode_preScanning(void){
 
 		stt_devStatusRecord devStatusRecordFlg_temp = {0};
 
+		devStatusRecordIF_paramGet(&devStatusRecordFlg_temp);
 		devStatusRecordFlg_temp.devStatusOnOffRecord_IF = 1;
+		devStatusRecordIF_paramSet(&devStatusRecordFlg_temp, false);
+	}
+	else{
+		
+		stt_devStatusRecord devStatusRecordFlg_temp = {0};
+		
+		devStatusRecordIF_paramGet(&devStatusRecordFlg_temp);
+		devStatusRecordFlg_temp.devStatusOnOffRecord_IF = 0;
 		devStatusRecordIF_paramSet(&devStatusRecordFlg_temp, false);
 	}
 
@@ -778,7 +817,9 @@ void devMechanicalOpreatPeriphInit(void){
 	io_conf.pull_up_en 	 = 1;
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_SOCKET)
 
-	io_conf.pin_bit_mask = (1ULL << DEV_SOCKET_USR_KEY_PIN);
+	io_conf.pin_bit_mask = (1ULL << DEV_SOCKET_USR_KEY_PIN)			|\
+						   (1ULL << DEV_SOCKET_USR_DEVDEF_PIN_C0)	|\
+						   (1ULL << DEV_SOCKET_USR_DEVDEF_PIN_C1);
 	io_conf.pull_down_en = 0;
 	io_conf.pull_up_en 	 = 1;
 #elif(L8_DEVICE_TYPE_PANEL_DEF == DEV_TYPES_PANEL_DEF_INDEP_MOUDLE)

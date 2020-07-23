@@ -31,6 +31,7 @@ extern "C" {
 #include "devDriver_infraActDetect.h"
 #include "devDriver_infrared.h"
 #include "devDriver_socket.h"
+#include "devDriver_solarSysManager.h"
 
 /*********************
  *      DEFINES
@@ -69,7 +70,7 @@ extern "C" {
   
 #endif
 
-#define DEVICE_TYPE_LIST_NUM					10
+#define DEVICE_TYPE_LIST_NUM					11
 #define HOMEPAGE_THEMETYPE_NUM					3
 
 /**********************
@@ -86,11 +87,14 @@ devTypeDef_enum IRAM_ATTR currentDev_typeGet(void);
 void currentDev_typeSet(devTypeDef_enum devType, bool nvsRecord_IF);
 void devStatusRecordIF_paramSet(stt_devStatusRecord *param, bool nvsRecord_IF);
 void devStatusRecordIF_paramGet(stt_devStatusRecord *param);
+void devSystemKeyAttr_paramSet(stt_devSystemKeyParamRecord *param, bool nvsRecord_IF);
+void devSystemKeyAttr_paramGet(stt_devSystemKeyParamRecord *param);
 void deviceDatapointSynchronousReport_actionTrig(void);
 void devDriverParamChg_dataRealesTrig(bool nvsRecord_IF, 
 										  	   bool mutualCtrlTrig_IF, 
 										  	   bool statusUploadMedthod,
-										  	   bool synchronousReport_IF);
+										  	   bool synchronousReport_IF,
+										  	   bool syncMeshSuper_IF);
 void currentDev_dataPointGet(stt_devDataPonitTypedef *param);
 void currentDev_dataPointRcdGet(stt_devDataPonitTypedef *param);
 void currentDev_dataPointGetwithRecord(stt_devDataPonitTypedef *param);
@@ -98,7 +102,8 @@ void currentDev_dataPointSet(stt_devDataPonitTypedef *param,
 													   bool nvsRecord_IF, 
 													   bool mutualCtrlTrig_IF, 
 													   bool statusUploadMedthod, 
-													   bool synchronousReport_IF);
+													   bool synchronousReport_IF,
+													   bool syncMeshSuper_IF);
 void currentDev_extParamSet(void *param);
 void currentDev_extParamGet(uint8_t paramTemp[DEVPARAMEXT_DT_LEN]);
 void devDriverApp_responseAtionTrig_delay(void);

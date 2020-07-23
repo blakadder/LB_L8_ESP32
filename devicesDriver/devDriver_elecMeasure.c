@@ -1,13 +1,5 @@
 #include "devDriver_elecMeasure.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "driver/periph_ctrl.h"
 #include "driver/gpio.h"
 #include "driver/pcnt.h"
@@ -51,7 +43,7 @@ void devDriverBussiness_elecMeasure_paramProcess(void){ //调用周期:DEVDRIVER
 
 	if(0 == timeNow.time_Minute){
 
-		if(devParam_ElecDetect.ele_Consum > 1.0F)devParam_ElecDetect.ele_Consum = 0.0F;
+		if(devParam_ElecDetect.ele_Consum > 0.0001F)devParam_ElecDetect.ele_Consum = 0.0F; //小时周期电量清理，但保证当前分钟内的最小电量计量（0.0001kWh）
 	}
 
 	if(paramElecSumSave.loopCounter < paramElecSumSave.loopPeriod)paramElecSumSave.loopCounter ++;
@@ -213,7 +205,9 @@ static void devDriverBussiness_elecMeasure_pcntInit(void){
 
 void devDriverBussiness_elecMeasure_periphInit(void){
 
+#if(L8_DEVICE_TYPE_PANEL_DEF != DEV_TYPES_PANEL_DEF_SOLAR_SYS_MANAGER) //太阳能电池管理器没有频率计电量检查，ADC电压检测代替
 	devDriverBussiness_elecMeasure_pcntInit();
+#endif
 }
 
 

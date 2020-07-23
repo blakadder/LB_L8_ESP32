@@ -320,31 +320,31 @@ lv_indev_drv_t lvgl_indev_init()
 
     // Init default values. (From NHD-3.5-320240MF-ATXL-CTP-1 datasheet)
     // Valid touching detect threshold --def: 70
-    write_reg(FT5x06_ID_G_THGROUP, 0x08);
+    write_reg(FT5x06_ID_G_THGROUP, 70);
 
     // valid touching peak detect threshold --def: 60
-    write_reg(FT5x06_ID_G_THPEAK, 15);
+    write_reg(FT5x06_ID_G_THPEAK, 60);
 
     // Touch focus threshold --def: 16
-    write_reg(FT5x06_ID_G_THCAL, 0xE9);
+    write_reg(FT5x06_ID_G_THCAL, 16);
 
     // threshold when there is surface water --def: 60
-    write_reg(FT5x06_ID_G_THWATER, 25);
+    write_reg(FT5x06_ID_G_THWATER, 60);
 
     // threshold of temperature compensation --def: 10
-    write_reg(FT5x06_ID_G_THTEMP, 20);
+    write_reg(FT5x06_ID_G_THTEMP, 10);
 
     // Touch difference threshold --def: 20
-    write_reg(FT5x06_ID_G_THDIFF, 0x20);
+    write_reg(FT5x06_ID_G_THDIFF, 20);
 
     // Delay to enter 'Monitor' status (s) --def: 02
-    write_reg(FT5x06_ID_G_TIME_ENTER_MONITOR, 0x02);
+    write_reg(FT5x06_ID_G_TIME_ENTER_MONITOR, 02);
 
     // Period of 'Active' status (ms) --def: 12
-    write_reg(FT5x06_ID_G_PERIODACTIVE, 0x03);
+    write_reg(FT5x06_ID_G_PERIODACTIVE, 03);
 
     // Timer to enter 'idle' when in 'Monitor' (ms) --def: 40
-    write_reg(FT5x06_ID_G_PERIODMONITOR, 0x28);
+    write_reg(FT5x06_ID_G_PERIODMONITOR, 40);
 
     lv_indev_drv_t indev_drv;      /*Descriptor of an input device driver*/
     lv_indev_drv_init(&indev_drv); /*Basic initialization*/

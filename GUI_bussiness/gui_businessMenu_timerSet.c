@@ -5,15 +5,6 @@
 
 #include "mdf_common.h"
 
-// /* freertos includes */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "sdkconfig.h"
 
 /* lvgl includes */
@@ -50,37 +41,34 @@ LV_IMG_DECLARE(imageBtn_feedBackNormal);
 
 static const LV_OBJ_FREE_NUM_TYPE objControls_btn_timerReaptSetPage = 1;
 
-static lv_style_t styleRoller_timeSet_bg;
-static lv_style_t styleRoller_timeSet_sel;
-static lv_style_t styleLebalText_timeSet;
-static lv_style_t styleLebalText_dataSet;
-static lv_style_t styleLebalText_devStatusSet;
-static lv_style_t styleSw_devStatus_bg;
-static lv_style_t styleSw_devStatus_indic;
-static lv_style_t styleSw_devStatus_knobOn;
-static lv_style_t styleSw_devStatus_knobOff;
-static lv_style_t styleBk_objBground;
-static lv_style_t styleBtn_specialTransparent_rel;
-static lv_style_t styleBtn_specialTransparent_pr;
-static lv_style_t styleBtn_specialTransparent_tgl_rel;
-static lv_style_t styleBtn_specialTransparent_tgl_pr;
-static lv_style_t stylePage_reaptSet;
-static lv_style_t stylePageCb_reaptSet;
-static lv_style_t styleTextPageTitle_reaptSet;
-static lv_style_t stylePageBtn_reaptSet;
-static lv_style_t styleText_menuLevel_A;
-static lv_style_t styleText_menuSetChoiceTitle;
-static lv_style_t styleText_menuDevStatus;
-static lv_style_t styleText_menuTimeSet;
-static lv_style_t styleText_menuReaptSet;
-static lv_style_t styleText_menuReaptRem;
+static lv_style_t *styleRoller_timeSet_bg = NULL;
+static lv_style_t *styleRoller_timeSet_sel = NULL;
+static lv_style_t *styleSw_devStatus_bg = NULL;
+static lv_style_t *styleSw_devStatus_indic = NULL;
+static lv_style_t *styleSw_devStatus_knobOn = NULL;
+static lv_style_t *styleSw_devStatus_knobOff = NULL;
+static lv_style_t *styleBk_objBground = NULL;
+static lv_style_t *styleBtn_specialTransparent_rel = NULL;
+static lv_style_t *styleBtn_specialTransparent_pr = NULL;
+static lv_style_t *styleBtn_specialTransparent_tgl_rel = NULL;
+static lv_style_t *styleBtn_specialTransparent_tgl_pr = NULL;
+static lv_style_t *stylePage_reaptSet = NULL;
+static lv_style_t *stylePageCb_reaptSet = NULL;
+static lv_style_t *styleTextPageTitle_reaptSet = NULL;
+static lv_style_t *stylePageBtn_reaptSet = NULL;
+static lv_style_t *styleText_menuLevel_A = NULL;
+static lv_style_t *styleText_menuSetChoiceTitle = NULL;
+static lv_style_t *styleText_menuDevStatus = NULL;
+static lv_style_t *styleText_menuTimeSet = NULL;
+static lv_style_t *styleText_menuReaptSet = NULL;
+static lv_style_t *styleText_menuReaptRem = NULL;
 
-static lv_style_t stylePage_timerSetPageA;
-static lv_style_t styleBtn_timerSetPageA;
-static lv_style_t styleLabel_btnTimerSetPageA_timerInfo;
-static lv_style_t styleLabel_btnTimerSetPageA_reaptInfo;
-static lv_style_t styleLabel_SetInfoTitle_opreation;
-static lv_style_t styleImg_menuFun_btnFun;
+static lv_style_t *stylePage_timerSetPageA = NULL;
+static lv_style_t *styleBtn_timerSetPageA = NULL;
+static lv_style_t *styleLabel_btnTimerSetPageA_timerInfo = NULL;
+static lv_style_t *styleLabel_btnTimerSetPageA_reaptInfo = NULL;
+static lv_style_t *styleLabel_SetInfoTitle_opreation = NULL;
+static lv_style_t *styleImg_menuFun_btnFun = NULL;
 
 static lv_obj_t *guiObj_parentTemp = NULL;
 
@@ -198,9 +186,11 @@ static void currentGui_elementClear(void){
 
 void guiDispTimeOut_pageTimerSet(void){
 
-	lvGui_usrSwitch(bussinessType_Home);
+//	lvGui_usrSwitch(bussinessType_Home);
 
-	currentGui_elementClear();
+//	currentGui_elementClear();
+
+	lvGui_usrSwitch_withPrefunc(bussinessType_Home, currentGui_elementClear);
 }
 
 static lv_res_t funCb_btnActionClick_menuBtn_funBack(lv_obj_t *btn){
@@ -224,9 +214,11 @@ static lv_res_t funCb_btnActionClick_menuBtn_funBack(lv_obj_t *btn){
 		break;
 	}
 
-	lvGui_usrSwitch(guiChg_temp);
+//	lvGui_usrSwitch(guiChg_temp);
 
-	currentGui_elementClear();
+//	currentGui_elementClear();
+
+	lvGui_usrSwitch_withPrefunc(guiChg_temp, currentGui_elementClear);
 	
 	return LV_RES_OK;
 }
@@ -252,7 +244,7 @@ static lv_res_t funCb_btnActionPress_menuBtn_funBack(lv_obj_t *btn){
 		break;
 	}
 
-	lv_img_set_style(objImg_colorChg, &styleImg_menuFun_btnFun);
+	lv_img_set_style(objImg_colorChg, styleImg_menuFun_btnFun);
 	lv_obj_refresh_style(objImg_colorChg);
 
 	return LV_RES_OK;
@@ -496,14 +488,14 @@ static void lvGui_bMenuSet_B_pageReaptSet_creat(uint8_t currentWeekHoldBit){
 
 	timerSetInfoWeekBithold_chgTemp = currentWeekHoldBit;
 
-	lv_style_copy(&stylePage_reaptSet, &lv_style_plain_color);
-	stylePage_reaptSet.body.main_color = LV_COLOR_SILVER;
-	stylePage_reaptSet.body.grad_color = LV_COLOR_SILVER;
-	stylePage_reaptSet.body.border.part = LV_BORDER_NONE;
-	stylePage_reaptSet.body.radius = 6;
-	stylePage_reaptSet.body.opa = LV_OPA_90;
-	stylePage_reaptSet.body.padding.hor = 0;
-	stylePage_reaptSet.body.padding.inner = 0;	
+	lv_style_copy(stylePage_reaptSet, &lv_style_plain_color);
+	stylePage_reaptSet->body.main_color = LV_COLOR_SILVER;
+	stylePage_reaptSet->body.grad_color = LV_COLOR_SILVER;
+	stylePage_reaptSet->body.border.part = LV_BORDER_NONE;
+	stylePage_reaptSet->body.radius = 6;
+	stylePage_reaptSet->body.opa = LV_OPA_90;
+	stylePage_reaptSet->body.padding.hor = 0;
+	stylePage_reaptSet->body.padding.inner = 0;	
 
 	if(objpage_reaptSet == NULL)
 		objpage_reaptSet = lv_page_create(lv_scr_act(), NULL);
@@ -514,26 +506,26 @@ static void lvGui_bMenuSet_B_pageReaptSet_creat(uint8_t currentWeekHoldBit){
 	(devStatusDispMethod_landscapeIf_get())?
 		(lv_obj_set_pos(objpage_reaptSet, 20, 25)):
 		(lv_obj_set_pos(objpage_reaptSet, 20, 45));		
-	lv_page_set_style(objpage_reaptSet, LV_PAGE_STYLE_SB, &stylePage_reaptSet);
-	lv_page_set_style(objpage_reaptSet, LV_PAGE_STYLE_BG, &stylePage_reaptSet);
+	lv_page_set_style(objpage_reaptSet, LV_PAGE_STYLE_SB, stylePage_reaptSet);
+	lv_page_set_style(objpage_reaptSet, LV_PAGE_STYLE_BG, stylePage_reaptSet);
 	lv_page_set_sb_mode(objpage_reaptSet, LV_SB_MODE_HIDE); 	
 	lv_page_set_scrl_fit(objpage_reaptSet, false, true); //key opration
 	lv_page_set_scrl_layout(objpage_reaptSet, LV_LAYOUT_PRETTY);
 
-	lv_style_copy(&styleTextPageTitle_reaptSet, &lv_style_plain);
-	styleTextPageTitle_reaptSet.text.font = &lv_font_consola_19;
-	styleTextPageTitle_reaptSet.text.color = LV_COLOR_BLACK;
+	lv_style_copy(styleTextPageTitle_reaptSet, &lv_style_plain);
+	styleTextPageTitle_reaptSet->text.font = &lv_font_consola_19;
+	styleTextPageTitle_reaptSet->text.color = LV_COLOR_BLACK;
 	objpageLabel_title = lv_label_create(objpage_reaptSet, NULL);
-	lv_obj_set_style(objpageLabel_title, &styleTextPageTitle_reaptSet);
+	lv_obj_set_style(objpageLabel_title, styleTextPageTitle_reaptSet);
 	lv_label_set_text(objpageLabel_title, "repeat cycle");
 	lv_obj_set_protect(objpageLabel_title, LV_PROTECT_POS);
 	lv_obj_align(objpageLabel_title, objpage_reaptSet, LV_ALIGN_IN_TOP_MID, 0, -5);
 	
-	lv_style_copy(&stylePageCb_reaptSet, &lv_style_plain);
-	stylePageCb_reaptSet.body.border.part = LV_BORDER_NONE;
-	stylePageCb_reaptSet.body.empty = 1;
-	stylePageCb_reaptSet.text.color = LV_COLOR_BLACK;
-	stylePageCb_reaptSet.text.font = &lv_font_consola_16;
+	lv_style_copy(stylePageCb_reaptSet, &lv_style_plain);
+	stylePageCb_reaptSet->body.border.part = LV_BORDER_NONE;
+	stylePageCb_reaptSet->body.empty = 1;
+	stylePageCb_reaptSet->text.color = LV_COLOR_BLACK;
+	stylePageCb_reaptSet->text.font = &lv_font_consola_16;
 
 	objCb_dataSet_mon = lv_cb_create(objpage_reaptSet, NULL);
 	lv_obj_set_size(objCb_dataSet_mon, 160, 15);
@@ -579,13 +571,13 @@ static void lvGui_bMenuSet_B_pageReaptSet_creat(uint8_t currentWeekHoldBit){
 	(devStatusDispMethod_landscapeIf_get())?
 		(lv_obj_align(objCb_dataSet_sun, objCb_dataSet_fri, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10)):
 		(lv_obj_align(objCb_dataSet_sun, objCb_dataSet_sat, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10));
-	lv_cb_set_style(objCb_dataSet_mon, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_tues, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_wed, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_thur, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_fri, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_sat, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
-	lv_cb_set_style(objCb_dataSet_sun, LV_CB_STYLE_BG, &stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_mon, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_tues, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_wed, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_thur, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_fri, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_sat, LV_CB_STYLE_BG, stylePageCb_reaptSet);
+	lv_cb_set_style(objCb_dataSet_sun, LV_CB_STYLE_BG, stylePageCb_reaptSet);
 	lv_obj_set_free_num(objCb_dataSet_mon, LV_OBJ_FREENUM_BASE_TIMER_UNITOP_CB + 0);
 	lv_obj_set_free_num(objCb_dataSet_tues, LV_OBJ_FREENUM_BASE_TIMER_UNITOP_CB + 1);
 	lv_obj_set_free_num(objCb_dataSet_wed, LV_OBJ_FREENUM_BASE_TIMER_UNITOP_CB + 2);
@@ -617,10 +609,10 @@ static void lvGui_bMenuSet_B_pageReaptSet_creat(uint8_t currentWeekHoldBit){
 
 	objpageBtn_confirm = lv_btn_create(objpage_reaptSet, NULL);
 	lv_obj_set_free_num(objpageBtn_confirm, objControls_btn_timerReaptSetPage);
-    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_PR, &styleBtn_specialTransparent_pr);
-    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_TGL_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_TGL_PR, &styleBtn_specialTransparent_pr);
+    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_PR, styleBtn_specialTransparent_pr);
+    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_TGL_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(objpageBtn_confirm, LV_BTN_STYLE_TGL_PR, styleBtn_specialTransparent_pr);
 	lv_btn_set_fit(objpageBtn_confirm, false, false);
 	lv_obj_set_size(objpageBtn_confirm, 70, 25);
 	lv_page_glue_obj(objpageBtn_confirm, true);
@@ -636,63 +628,102 @@ static void lvGui_bMenuSet_B_pageReaptSet_creat(uint8_t currentWeekHoldBit){
 		(lv_obj_align(objpageBtn_cancel, objpageBtn_confirm, LV_ALIGN_CENTER, 85, 0));
 	lv_btn_set_action(objpageBtn_cancel, LV_BTN_ACTION_CLICK, funCb_btnActionPress_btnPage_timerDataReapt_cancel);
 
-	lv_style_copy(&stylePageBtn_reaptSet, &lv_style_plain);
-	stylePageBtn_reaptSet.text.font = &lv_font_ariblk_18;
-	stylePageBtn_reaptSet.text.color = LV_COLOR_MAKE(0, 128, 255);
+	lv_style_copy(stylePageBtn_reaptSet, &lv_style_plain);
+	stylePageBtn_reaptSet->text.font = &lv_font_ariblk_18;
+	stylePageBtn_reaptSet->text.color = LV_COLOR_MAKE(0, 128, 255);
 	objpageBtnLabel_confirm = lv_label_create(objpageBtn_confirm, NULL);
-	lv_obj_set_style(objpageBtnLabel_confirm, &stylePageBtn_reaptSet);
+	lv_obj_set_style(objpageBtnLabel_confirm, stylePageBtn_reaptSet);
 	lv_label_set_text(objpageBtnLabel_confirm, "confirm");
 	objpageBtnLabel_cancel = lv_label_create(objpageBtn_cancel, objpageBtnLabel_confirm);
-	lv_obj_set_style(objpageBtnLabel_cancel, &stylePageBtn_reaptSet);
+	lv_obj_set_style(objpageBtnLabel_cancel, stylePageBtn_reaptSet);
 	lv_label_set_text(objpageBtnLabel_cancel, "cancel");
 
 	usrApp_fullScreenRefresh_self(20, 80);
+}
+
+static void lvGuiMenuTimerSet_styleMemoryInitialization(void){
+
+	static bool memAlloced_flg = false;
+
+	if(true == memAlloced_flg)return;
+	else memAlloced_flg = true;
+
+	styleRoller_timeSet_bg 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleRoller_timeSet_sel 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleSw_devStatus_bg 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleSw_devStatus_indic 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleSw_devStatus_knobOn 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleSw_devStatus_knobOff 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBk_objBground 			= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBtn_specialTransparent_rel = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBtn_specialTransparent_pr = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBtn_specialTransparent_tgl_rel = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBtn_specialTransparent_tgl_pr = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	stylePage_reaptSet 			= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	stylePageCb_reaptSet 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleTextPageTitle_reaptSet = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	stylePageBtn_reaptSet 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuLevel_A 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuSetChoiceTitle = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuDevStatus 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuTimeSet 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuReaptSet 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleText_menuReaptRem 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	
+	stylePage_timerSetPageA 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleBtn_timerSetPageA 		= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleLabel_btnTimerSetPageA_timerInfo = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleLabel_btnTimerSetPageA_reaptInfo = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleLabel_SetInfoTitle_opreation = (lv_style_t *)os_zalloc(sizeof(lv_style_t));
+	styleImg_menuFun_btnFun 	= (lv_style_t *)os_zalloc(sizeof(lv_style_t));
 }
 
 static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 
 	usrApp_trigTimer usrAppTimerParamInfo[USRAPP_VALDEFINE_TRIGTIMER_NUM] = {0};
 
+	lvGuiMenuTimerSet_styleMemoryInitialization();
+
 	usrAppActTrigTimer_paramGet(usrAppTimerParamInfo);
 
-	lv_style_copy(&styleText_menuLevel_A, &lv_style_plain);
-	styleText_menuLevel_A.text.font = &lv_font_dejavu_20;
-	styleText_menuLevel_A.text.color = LV_COLOR_WHITE;
+	lv_style_copy(styleText_menuLevel_A, &lv_style_plain);
+	styleText_menuLevel_A->text.font = &lv_font_dejavu_20;
+	styleText_menuLevel_A->text.color = LV_COLOR_WHITE;
 
-	lv_style_copy(&stylePage_timerSetPageA, &lv_style_plain);
-	stylePage_timerSetPageA.body.main_color = LV_COLOR_WHITE;
-	stylePage_timerSetPageA.body.grad_color = LV_COLOR_WHITE;
-	stylePage_timerSetPageA.body.border.color = LV_COLOR_WHITE;
-	stylePage_timerSetPageA.body.border.width = 1;
-	stylePage_timerSetPageA.body.border.opa = LV_OPA_70;
-	stylePage_timerSetPageA.body.radius = 0;
-	stylePage_timerSetPageA.body.opa = LV_OPA_60;
-	stylePage_timerSetPageA.body.padding.hor = 3;
-	stylePage_timerSetPageA.body.padding.inner = 8;
+	lv_style_copy(stylePage_timerSetPageA, &lv_style_plain);
+	stylePage_timerSetPageA->body.main_color = LV_COLOR_WHITE;
+	stylePage_timerSetPageA->body.grad_color = LV_COLOR_WHITE;
+	stylePage_timerSetPageA->body.border.color = LV_COLOR_WHITE;
+	stylePage_timerSetPageA->body.border.width = 1;
+	stylePage_timerSetPageA->body.border.opa = LV_OPA_70;
+	stylePage_timerSetPageA->body.radius = 0;
+	stylePage_timerSetPageA->body.opa = LV_OPA_60;
+	stylePage_timerSetPageA->body.padding.hor = 3;
+	stylePage_timerSetPageA->body.padding.inner = 8;
 
-	lv_style_copy(&styleBtn_timerSetPageA, &lv_style_btn_rel);
-	styleBtn_timerSetPageA.body.main_color = LV_COLOR_TRANSP;
-	styleBtn_timerSetPageA.body.grad_color = LV_COLOR_TRANSP;
-	styleBtn_timerSetPageA.body.border.part = LV_BORDER_NONE;
-	styleBtn_timerSetPageA.body.opa = LV_OPA_TRANSP;
-	styleBtn_timerSetPageA.body.radius = 0;
-	styleBtn_timerSetPageA.body.shadow.width = 0;
+	lv_style_copy(styleBtn_timerSetPageA, &lv_style_btn_rel);
+	styleBtn_timerSetPageA->body.main_color = LV_COLOR_TRANSP;
+	styleBtn_timerSetPageA->body.grad_color = LV_COLOR_TRANSP;
+	styleBtn_timerSetPageA->body.border.part = LV_BORDER_NONE;
+	styleBtn_timerSetPageA->body.opa = LV_OPA_TRANSP;
+	styleBtn_timerSetPageA->body.radius = 0;
+	styleBtn_timerSetPageA->body.shadow.width = 0;
 
-	lv_style_copy(&styleImg_menuFun_btnFun, &lv_style_plain);
-	styleImg_menuFun_btnFun.image.intense = LV_OPA_COVER;
-	styleImg_menuFun_btnFun.image.color = LV_COLOR_MAKE(200, 191, 231);
+	lv_style_copy(styleImg_menuFun_btnFun, &lv_style_plain);
+	styleImg_menuFun_btnFun->image.intense = LV_OPA_COVER;
+	styleImg_menuFun_btnFun->image.color = LV_COLOR_MAKE(200, 191, 231);
 
-	lv_style_copy(&styleLabel_btnTimerSetPageA_timerInfo, &lv_style_plain);
-	styleLabel_btnTimerSetPageA_timerInfo.text.font = &lv_font_dejavu_20;
-	styleLabel_btnTimerSetPageA_timerInfo.text.color = LV_COLOR_BLACK;
-	lv_style_copy(&styleLabel_btnTimerSetPageA_reaptInfo, &lv_style_plain);
-	styleLabel_btnTimerSetPageA_reaptInfo.text.font = &lv_font_consola_16;
-	styleLabel_btnTimerSetPageA_reaptInfo.text.color = LV_COLOR_BLACK;
+	lv_style_copy(styleLabel_btnTimerSetPageA_timerInfo, &lv_style_plain);
+	styleLabel_btnTimerSetPageA_timerInfo->text.font = &lv_font_dejavu_20;
+	styleLabel_btnTimerSetPageA_timerInfo->text.color = LV_COLOR_BLACK;
+	lv_style_copy(styleLabel_btnTimerSetPageA_reaptInfo, &lv_style_plain);
+	styleLabel_btnTimerSetPageA_reaptInfo->text.font = &lv_font_consola_16;
+	styleLabel_btnTimerSetPageA_reaptInfo->text.color = LV_COLOR_BLACK;
 
 	objText_menuCurrentTitle = lv_label_create(obj_Parent, NULL);
-	lv_label_set_text(objText_menuCurrentTitle, "timer set");
+	lv_label_set_text(objText_menuCurrentTitle, "timer setting");
 	lv_obj_align(objText_menuCurrentTitle, NULL, LV_ALIGN_IN_BOTTOM_MID, 0, -7);
-	lv_obj_set_style(objText_menuCurrentTitle, &styleText_menuLevel_A);
+	lv_obj_set_style(objText_menuCurrentTitle, styleText_menuLevel_A);
 
 	menuBtnChoIcon_fun_home = lv_imgbtn_create(obj_Parent, NULL);
 	lv_obj_set_size(menuBtnChoIcon_fun_home, 100, 50);
@@ -701,7 +732,7 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 		(lv_obj_set_pos(menuBtnChoIcon_fun_home, 140, 23));
 	lv_imgbtn_set_src(menuBtnChoIcon_fun_home, LV_BTN_STATE_REL, &iconMenu_funBack_homePage);
 	lv_imgbtn_set_src(menuBtnChoIcon_fun_home, LV_BTN_STATE_PR, &iconMenu_funBack_homePage);
-	lv_imgbtn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STATE_PR, &styleImg_menuFun_btnFun);
+	lv_imgbtn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STATE_PR, styleImg_menuFun_btnFun);
 	lv_btn_set_action(menuBtnChoIcon_fun_home, LV_BTN_ACTION_CLICK, funCb_btnActionClick_menuBtn_funBack);
 	lv_obj_set_free_num(menuBtnChoIcon_fun_home, LV_OBJ_FREENUM_BTNNUM_DEF_MENUHOME);
 
@@ -719,10 +750,10 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 //		(lv_obj_set_pos(menuBtnChoIcon_fun_home, 160, 25));
 //	lv_obj_set_top(menuBtnChoIcon_fun_home, true);
 //	lv_obj_set_free_num(menuBtnChoIcon_fun_home, LV_OBJ_FREENUM_BTNNUM_DEF_MENUHOME);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_REL, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_PR, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_REL, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_PR, &styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_REL, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_PR, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_REL, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_PR, styleBtn_timerSetPageA);
 //	lv_btn_set_action(menuBtnChoIcon_fun_home, LV_BTN_ACTION_CLICK, funCb_btnActionClick_menuBtn_funBack);
 //	lv_btn_set_action(menuBtnChoIcon_fun_home, LV_BTN_ACTION_PR, funCb_btnActionPress_menuBtn_funBack);
 //	imgMenuBtnChoIcon_fun_home = lv_img_create(obj_Parent, NULL);
@@ -747,10 +778,10 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 //	lv_obj_set_pos(menuBtnChoIcon_fun_home, 160, 25);
 //	lv_obj_set_top(menuBtnChoIcon_fun_home, true);
 //	lv_obj_set_free_num(menuBtnChoIcon_fun_home, LV_OBJ_FREENUM_BTNNUM_DEF_MENUHOME);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_REL, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_PR, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_REL, &styleBtn_timerSetPageA);
-//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_PR, &styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_REL, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_PR, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_REL, styleBtn_timerSetPageA);
+//	lv_btn_set_style(menuBtnChoIcon_fun_home, LV_BTN_STYLE_TGL_PR, styleBtn_timerSetPageA);
 //	lv_btn_set_action(menuBtnChoIcon_fun_home, LV_BTN_ACTION_CLICK, funCb_btnActionClick_menuBtn_funBack);
 //	lv_btn_set_action(menuBtnChoIcon_fun_home, LV_BTN_ACTION_PR, funCb_btnActionPress_menuBtn_funBack);
 //	imgMenuBtnChoIcon_fun_home = lv_img_create(obj_Parent, NULL);
@@ -775,11 +806,11 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 		(lv_obj_set_size(page_timerSetPageA, 320, 180)):
 		(lv_obj_set_size(page_timerSetPageA, 240, 260));
 	lv_obj_set_pos(page_timerSetPageA, 0, 75);
-	lv_style_copy(&stylePage_timerSetPageA, &lv_style_plain);
-	stylePage_timerSetPageA.body.main_color = LV_COLOR_WHITE;
-	stylePage_timerSetPageA.body.grad_color = LV_COLOR_WHITE;
-	lv_page_set_style(page_timerSetPageA, LV_PAGE_STYLE_SB, &stylePage_timerSetPageA);
-	lv_page_set_style(page_timerSetPageA, LV_PAGE_STYLE_BG, &stylePage_timerSetPageA);
+	lv_style_copy(stylePage_timerSetPageA, &lv_style_plain);
+	stylePage_timerSetPageA->body.main_color = LV_COLOR_WHITE;
+	stylePage_timerSetPageA->body.grad_color = LV_COLOR_WHITE;
+	lv_page_set_style(page_timerSetPageA, LV_PAGE_STYLE_SB, stylePage_timerSetPageA);
+	lv_page_set_style(page_timerSetPageA, LV_PAGE_STYLE_BG, stylePage_timerSetPageA);
 	lv_page_set_sb_mode(page_timerSetPageA, LV_SB_MODE_HIDE);
 	lv_page_set_scrl_fit(page_timerSetPageA, false, true); //key opration
 	lv_page_set_scrl_layout(page_timerSetPageA, LV_LAYOUT_CENTER);
@@ -805,10 +836,10 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 			(lv_obj_set_size(btnUnit_timerSetPageA[loop], 240, 60)):
 			(lv_obj_set_size(btnUnit_timerSetPageA[loop], 160, 60));
 		lv_page_glue_obj(btnUnit_timerSetPageA[loop], true);
-		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_REL, &styleBtn_timerSetPageA);
-		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_PR, &styleBtn_timerSetPageA);
-		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_TGL_REL, &styleBtn_timerSetPageA);
-		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_TGL_PR, &styleBtn_timerSetPageA);
+		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_REL, styleBtn_timerSetPageA);
+		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_PR, styleBtn_timerSetPageA);
+		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_TGL_REL, styleBtn_timerSetPageA);
+		lv_btn_set_style(btnUnit_timerSetPageA[loop], LV_BTN_STYLE_TGL_PR, styleBtn_timerSetPageA);
 		lv_obj_set_protect(btnUnit_timerSetPageA[loop], LV_PROTECT_POS);
 		lv_obj_align(btnUnit_timerSetPageA[loop], lineUnit_timerSetPageA[loop], LV_ALIGN_OUT_BOTTOM_LEFT, 0, 0);
 	}
@@ -836,7 +867,7 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 		sprintf(strTemp, "%02d:%02d", usrAppTimerParamInfo[loop].tmUp_Hour,
 								  usrAppTimerParamInfo[loop].tmUp_Minute);
 		labelTimeUnit_timerSetPageA[loop] = lv_label_create(btnUnit_timerSetPageA[loop], NULL);
-		lv_obj_set_style(labelTimeUnit_timerSetPageA[loop], &styleLabel_btnTimerSetPageA_timerInfo);
+		lv_obj_set_style(labelTimeUnit_timerSetPageA[loop], styleLabel_btnTimerSetPageA_timerInfo);
 		lv_obj_set_size(labelTimeUnit_timerSetPageA[loop], 140, 30);
 		lv_label_set_text(labelTimeUnit_timerSetPageA[loop], strTemp);
 		lv_obj_set_protect(labelTimeUnit_timerSetPageA[loop], LV_PROTECT_POS);
@@ -857,7 +888,7 @@ static void lvGui_businessMenu_timerSetPageA(lv_obj_t * obj_Parent){
 			}
 		}
 		labelInfoUnit_timerSetPageA[loop] = lv_label_create(btnUnit_timerSetPageA[loop], NULL);
-		lv_obj_set_style(labelInfoUnit_timerSetPageA[loop], &styleLabel_btnTimerSetPageA_reaptInfo);
+		lv_obj_set_style(labelInfoUnit_timerSetPageA[loop], styleLabel_btnTimerSetPageA_reaptInfo);
 		lv_label_set_long_mode(labelInfoUnit_timerSetPageA[loop], LV_LABEL_LONG_DOT);
 		lv_obj_set_size(labelInfoUnit_timerSetPageA[loop], 140, 30);
 		lv_label_set_text(labelInfoUnit_timerSetPageA[loop], strTemp);
@@ -887,52 +918,52 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	memcpy(&timerSetInfo_temp, &timerSetInfoTemp_currentUnit, sizeof(usrApp_trigTimer));
 	timerSetInfoWeekBithold_cfmTemp = timerSetInfoTemp_currentUnit.tmUp_weekBitHold;
 
-	lv_style_copy(&styleLabel_SetInfoTitle_opreation, &lv_style_plain);
-	styleLabel_SetInfoTitle_opreation.text.font = &lv_font_consola_19;
-	styleLabel_SetInfoTitle_opreation.text.color = LV_COLOR_WHITE;
+	lv_style_copy(styleLabel_SetInfoTitle_opreation, &lv_style_plain);
+	styleLabel_SetInfoTitle_opreation->text.font = &lv_font_consola_19;
+	styleLabel_SetInfoTitle_opreation->text.color = LV_COLOR_WHITE;
 	
-	lv_style_copy(&styleBk_objBground, &lv_style_plain);
-	styleBk_objBground.body.main_color = LV_COLOR_WHITE;
-	styleBk_objBground.body.grad_color = LV_COLOR_WHITE;
-	styleBk_objBground.body.border.color = LV_COLOR_WHITE;
-	styleBk_objBground.body.border.width = 1;
-	styleBk_objBground.body.border.opa = LV_OPA_70;
-	styleBk_objBground.body.radius = 0;
-	styleBk_objBground.body.opa = LV_OPA_60;
-	styleBk_objBground.body.padding.hor = 3;			
-	styleBk_objBground.body.padding.inner = 8;	
+	lv_style_copy(styleBk_objBground, &lv_style_plain);
+	styleBk_objBground->body.main_color = LV_COLOR_WHITE;
+	styleBk_objBground->body.grad_color = LV_COLOR_WHITE;
+	styleBk_objBground->body.border.color = LV_COLOR_WHITE;
+	styleBk_objBground->body.border.width = 1;
+	styleBk_objBground->body.border.opa = LV_OPA_70;
+	styleBk_objBground->body.radius = 0;
+	styleBk_objBground->body.opa = LV_OPA_60;
+	styleBk_objBground->body.padding.hor = 3;			
+	styleBk_objBground->body.padding.inner = 8;	
 
-    lv_style_copy(&styleBtn_specialTransparent_rel, &lv_style_btn_rel);
-    lv_style_copy(&styleBtn_specialTransparent_pr, &lv_style_btn_pr);
-    lv_style_copy(&styleBtn_specialTransparent_rel, &lv_style_btn_tgl_rel);
-    lv_style_copy(&styleBtn_specialTransparent_pr, &lv_style_btn_tgl_pr);
+    lv_style_copy(styleBtn_specialTransparent_rel, &lv_style_btn_rel);
+    lv_style_copy(styleBtn_specialTransparent_pr, &lv_style_btn_pr);
+    lv_style_copy(styleBtn_specialTransparent_rel, &lv_style_btn_tgl_rel);
+    lv_style_copy(styleBtn_specialTransparent_pr, &lv_style_btn_tgl_pr);
 
-	styleBtn_specialTransparent_rel.body.main_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_rel.body.grad_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_rel.body.border.part = LV_BORDER_NONE;
-	styleBtn_specialTransparent_pr.body.main_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_pr.body.grad_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_pr.body.border.part = LV_BORDER_NONE;
-	styleBtn_specialTransparent_tgl_rel.body.main_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_tgl_rel.body.grad_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_tgl_rel.body.border.part = LV_BORDER_NONE;
-	styleBtn_specialTransparent_tgl_pr.body.main_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_tgl_pr.body.grad_color = LV_COLOR_TRANSP;
-	styleBtn_specialTransparent_tgl_pr.body.border.part = LV_BORDER_NONE;
+	styleBtn_specialTransparent_rel->body.main_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_rel->body.grad_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_rel->body.border.part = LV_BORDER_NONE;
+	styleBtn_specialTransparent_pr->body.main_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_pr->body.grad_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_pr->body.border.part = LV_BORDER_NONE;
+	styleBtn_specialTransparent_tgl_rel->body.main_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_tgl_rel->body.grad_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_tgl_rel->body.border.part = LV_BORDER_NONE;
+	styleBtn_specialTransparent_tgl_pr->body.main_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_tgl_pr->body.grad_color = LV_COLOR_TRANSP;
+	styleBtn_specialTransparent_tgl_pr->body.border.part = LV_BORDER_NONE;
 
-    styleBtn_specialTransparent_rel.body.opa = LV_OPA_TRANSP;
-    styleBtn_specialTransparent_pr.body.opa  = LV_OPA_TRANSP;
-    styleBtn_specialTransparent_tgl_rel.body.opa = LV_OPA_TRANSP;
-    styleBtn_specialTransparent_tgl_pr.body.opa = LV_OPA_TRANSP;
+    styleBtn_specialTransparent_rel->body.opa = LV_OPA_TRANSP;
+    styleBtn_specialTransparent_pr->body.opa  = LV_OPA_TRANSP;
+    styleBtn_specialTransparent_tgl_rel->body.opa = LV_OPA_TRANSP;
+    styleBtn_specialTransparent_tgl_pr->body.opa = LV_OPA_TRANSP;
 
-	styleBtn_specialTransparent_rel.body.radius = 0;
-	styleBtn_specialTransparent_pr.body.radius = 0;
-	styleBtn_specialTransparent_tgl_rel.body.radius = 0;
-	styleBtn_specialTransparent_tgl_pr.body.radius = 0;
-    styleBtn_specialTransparent_rel.body.shadow.width =  0;
-    styleBtn_specialTransparent_pr.body.shadow.width  =  0;
-    styleBtn_specialTransparent_tgl_rel.body.shadow.width = 0;
-    styleBtn_specialTransparent_tgl_pr.body.shadow.width =  0;
+	styleBtn_specialTransparent_rel->body.radius = 0;
+	styleBtn_specialTransparent_pr->body.radius = 0;
+	styleBtn_specialTransparent_tgl_rel->body.radius = 0;
+	styleBtn_specialTransparent_tgl_pr->body.radius = 0;
+    styleBtn_specialTransparent_rel->body.shadow.width =  0;
+    styleBtn_specialTransparent_pr->body.shadow.width  =  0;
+    styleBtn_specialTransparent_tgl_rel->body.shadow.width = 0;
+    styleBtn_specialTransparent_tgl_pr->body.shadow.width =  0;
 
 	btnTitle_setInfo_save = lv_btn_create(obj_Parent, NULL);
 	lv_obj_set_free_num(btnTitle_setInfo_save, LV_OBJ_FREENUM_BASE_TIMERSETINFO_NUM + timerUnit_num); //根据freeNum号进行对应timer存储操作
@@ -940,15 +971,15 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_set_size(btnTitle_setInfo_save, 60, 30);
 	lv_obj_set_protect(btnTitle_setInfo_save, LV_PROTECT_POS);
 	lv_obj_align(btnTitle_setInfo_save, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 0, 0);
-    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_PR, &styleBtn_specialTransparent_pr);
-    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_TGL_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_TGL_PR, &styleBtn_specialTransparent_pr);
+    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_PR, styleBtn_specialTransparent_pr);
+    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_TGL_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(btnTitle_setInfo_save, LV_BTN_STYLE_TGL_PR, styleBtn_specialTransparent_pr);
 	labelTitle_setInfo_save = lv_label_create(obj_Parent, NULL);
 	lv_obj_set_size(labelTitle_setInfo_save, 60, 30);
 	lv_obj_set_protect(labelTitle_setInfo_save, LV_PROTECT_POS);
 	lv_obj_align(labelTitle_setInfo_save, btnTitle_setInfo_save, LV_ALIGN_IN_BOTTOM_RIGHT, -5, 0);
-	lv_label_set_style(labelTitle_setInfo_save, &styleLabel_SetInfoTitle_opreation);
+	lv_label_set_style(labelTitle_setInfo_save, styleLabel_SetInfoTitle_opreation);
 	lv_label_set_recolor(labelTitle_setInfo_save, true);
 	lv_label_set_text(labelTitle_setInfo_save, "#4444FF save#");
 	lv_obj_set_top(labelTitle_setInfo_save, true);
@@ -957,15 +988,15 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_set_size(btnTitle_setInfo_cancel, 60, 30);
 	lv_obj_set_protect(btnTitle_setInfo_cancel, LV_PROTECT_POS);
 	lv_obj_align(btnTitle_setInfo_cancel, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 0, 0);
-    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_PR, &styleBtn_specialTransparent_pr);
-    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_TGL_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_TGL_PR, &styleBtn_specialTransparent_pr);
+    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_PR, styleBtn_specialTransparent_pr);
+    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_TGL_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(btnTitle_setInfo_cancel, LV_BTN_STYLE_TGL_PR, styleBtn_specialTransparent_pr);
 	labelTitle_setInfo_cancel = lv_label_create(obj_Parent, NULL);
 	lv_obj_set_size(labelTitle_setInfo_cancel, 60, 30);
 	lv_obj_set_protect(labelTitle_setInfo_cancel, LV_PROTECT_POS);
 	lv_obj_align(labelTitle_setInfo_cancel, btnTitle_setInfo_cancel, LV_ALIGN_IN_BOTTOM_LEFT, 5, 0);
-	lv_label_set_style(labelTitle_setInfo_cancel, &styleLabel_SetInfoTitle_opreation);
+	lv_label_set_style(labelTitle_setInfo_cancel, styleLabel_SetInfoTitle_opreation);
 	lv_label_set_recolor(labelTitle_setInfo_cancel, true);
 	lv_label_set_text(labelTitle_setInfo_cancel, "#4444FF cancel#");
 	lv_obj_set_top(labelTitle_setInfo_cancel, true);
@@ -975,11 +1006,11 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 		(lv_obj_set_size(bGround_obj, 320, 165)):
 		(lv_obj_set_size(bGround_obj, 240, 245));
 	lv_obj_set_pos(bGround_obj, 0, 75);
-	lv_style_copy(&styleBk_objBground, &lv_style_plain); 
-	styleBk_objBground.body.main_color = LV_COLOR_WHITE;
-	styleBk_objBground.body.grad_color = LV_COLOR_WHITE;					
-	lv_page_set_style(bGround_obj, LV_PAGE_STYLE_SB, &styleBk_objBground);
-	lv_page_set_style(bGround_obj, LV_PAGE_STYLE_BG, &styleBk_objBground);
+	lv_style_copy(styleBk_objBground, &lv_style_plain); 
+	styleBk_objBground->body.main_color = LV_COLOR_WHITE;
+	styleBk_objBground->body.grad_color = LV_COLOR_WHITE;					
+	lv_page_set_style(bGround_obj, LV_PAGE_STYLE_SB, styleBk_objBground);
+	lv_page_set_style(bGround_obj, LV_PAGE_STYLE_BG, styleBk_objBground);
 	lv_page_set_sb_mode(bGround_obj, LV_SB_MODE_HIDE); 	
 	lv_page_set_scrl_fit(bGround_obj, false, true); //key opration
 	lv_page_set_scrl_height(bGround_obj, 410);
@@ -999,49 +1030,49 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_set_protect(objLine_timeSet_limit_C, LV_PROTECT_POS);
 	lv_obj_align(objLine_timeSet_limit_C, objLine_timeSet_limit_B, LV_ALIGN_CENTER, 0, 90);
 
-	lv_style_copy(&styleText_menuSetChoiceTitle, &lv_style_plain);
-	styleText_menuSetChoiceTitle.text.font = &lv_font_consola_16;
-	styleText_menuSetChoiceTitle.text.color = LV_COLOR_GRAY;
+	lv_style_copy(styleText_menuSetChoiceTitle, &lv_style_plain);
+	styleText_menuSetChoiceTitle->text.font = &lv_font_consola_16;
+	styleText_menuSetChoiceTitle->text.color = LV_COLOR_GRAY;
 	objLabel_setChoiceTitle_switchSet = lv_label_create(bGround_obj, NULL);
-	lv_obj_set_style(objLabel_setChoiceTitle_switchSet, &styleText_menuSetChoiceTitle);
+	lv_obj_set_style(objLabel_setChoiceTitle_switchSet, styleText_menuSetChoiceTitle);
 	lv_label_set_text(objLabel_setChoiceTitle_switchSet, "switch setting:");
 	lv_obj_set_protect(objLabel_setChoiceTitle_switchSet, LV_PROTECT_POS);
 	lv_obj_align(objLabel_setChoiceTitle_switchSet, objLine_timeSet_limit_A, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 9);
 	objLabel_setChoiceTitle_reaptSet = lv_label_create(bGround_obj, NULL);
-	lv_obj_set_style(objLabel_setChoiceTitle_reaptSet, &styleText_menuSetChoiceTitle);
+	lv_obj_set_style(objLabel_setChoiceTitle_reaptSet, styleText_menuSetChoiceTitle);
 	lv_label_set_text(objLabel_setChoiceTitle_reaptSet, "repeat setting:");
 	lv_obj_set_protect(objLabel_setChoiceTitle_reaptSet, LV_PROTECT_POS);
 	lv_obj_align(objLabel_setChoiceTitle_reaptSet, objLine_timeSet_limit_B, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 9);
 	objLabel_setChoiceTitle_timeSet = lv_label_create(bGround_obj, NULL);
-	lv_obj_set_style(objLabel_setChoiceTitle_timeSet, &styleText_menuSetChoiceTitle);
+	lv_obj_set_style(objLabel_setChoiceTitle_timeSet, styleText_menuSetChoiceTitle);
 	lv_label_set_text(objLabel_setChoiceTitle_timeSet, "time setting:");
 	lv_obj_set_protect(objLabel_setChoiceTitle_timeSet, LV_PROTECT_POS);
 	lv_obj_align(objLabel_setChoiceTitle_timeSet, objLine_timeSet_limit_C, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 9);
 
 	//定时开关状态设定选项绘制
-	lv_style_copy(&styleSw_devStatus_bg, &lv_style_pretty);
-	styleSw_devStatus_bg.body.radius = LV_RADIUS_CIRCLE;
-	lv_style_copy(&styleSw_devStatus_indic, &lv_style_pretty_color);
-	styleSw_devStatus_indic.body.radius = LV_RADIUS_CIRCLE;
-	styleSw_devStatus_indic.body.main_color = LV_COLOR_HEX(0x9fc8ef);
-	styleSw_devStatus_indic.body.grad_color = LV_COLOR_HEX(0x9fc8ef);
-	styleSw_devStatus_indic.body.padding.hor = 0;
-	styleSw_devStatus_indic.body.padding.ver = 0;	
-	lv_style_copy(&styleSw_devStatus_knobOff, &lv_style_pretty);
-	styleSw_devStatus_knobOff.body.radius = LV_RADIUS_CIRCLE;
-	styleSw_devStatus_knobOff.body.shadow.width = 4;
-	styleSw_devStatus_knobOff.body.shadow.type = LV_SHADOW_BOTTOM;
-	lv_style_copy(&styleSw_devStatus_knobOn, &lv_style_pretty_color);
-	styleSw_devStatus_knobOn.body.radius = LV_RADIUS_CIRCLE;
-	styleSw_devStatus_knobOn.body.shadow.width = 4;
-	styleSw_devStatus_knobOn.body.shadow.type = LV_SHADOW_BOTTOM;
+	lv_style_copy(styleSw_devStatus_bg, &lv_style_pretty);
+	styleSw_devStatus_bg->body.radius = LV_RADIUS_CIRCLE;
+	lv_style_copy(styleSw_devStatus_indic, &lv_style_pretty_color);
+	styleSw_devStatus_indic->body.radius = LV_RADIUS_CIRCLE;
+	styleSw_devStatus_indic->body.main_color = LV_COLOR_HEX(0x9fc8ef);
+	styleSw_devStatus_indic->body.grad_color = LV_COLOR_HEX(0x9fc8ef);
+	styleSw_devStatus_indic->body.padding.hor = 0;
+	styleSw_devStatus_indic->body.padding.ver = 0;	
+	lv_style_copy(styleSw_devStatus_knobOff, &lv_style_pretty);
+	styleSw_devStatus_knobOff->body.radius = LV_RADIUS_CIRCLE;
+	styleSw_devStatus_knobOff->body.shadow.width = 4;
+	styleSw_devStatus_knobOff->body.shadow.type = LV_SHADOW_BOTTOM;
+	lv_style_copy(styleSw_devStatus_knobOn, &lv_style_pretty_color);
+	styleSw_devStatus_knobOn->body.radius = LV_RADIUS_CIRCLE;
+	styleSw_devStatus_knobOn->body.shadow.width = 4;
+	styleSw_devStatus_knobOn->body.shadow.type = LV_SHADOW_BOTTOM;
 
 //	objSw_devStatus_A = lv_sw_create(bGround_obj, NULL);
 //	lv_obj_set_size(objSw_devStatus_A, 55, 25);
-//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_BG, &styleSw_devStatus_bg);
-//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_INDIC, &styleSw_devStatus_indic);
-//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_KNOB_ON, &styleSw_devStatus_knobOn);
-//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_KNOB_OFF, &styleSw_devStatus_knobOff);
+//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_BG, styleSw_devStatus_bg);
+//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_INDIC, styleSw_devStatus_indic);
+//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_KNOB_ON, styleSw_devStatus_knobOn);
+//	lv_sw_set_style(objSw_devStatus_A, LV_SW_STYLE_KNOB_OFF, styleSw_devStatus_knobOff);
 //	lv_sw_set_anim_time(objSw_devStatus_A, 100);
 //	lv_obj_set_protect(objSw_devStatus_A, LV_PROTECT_POS);
 //	lv_obj_align(objSw_devStatus_A, objLine_timeSet_limit_A, LV_ALIGN_OUT_BOTTOM_RIGHT, -15, 35);
@@ -1067,15 +1098,15 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 //		(lv_sw_on(objSw_devStatus_C)):
 //		(lv_sw_off(objSw_devStatus_C));
 
-//	lv_style_copy(&styleText_menuDevStatus, &lv_style_plain);
-//	styleText_menuDevStatus.text.font = &lv_font_consola_16;
-//	styleText_menuDevStatus.text.color = LV_COLOR_BLACK;
+//	lv_style_copy(styleText_menuDevStatus, &lv_style_plain);
+//	styleText_menuDevStatus->text.font = &lv_font_consola_16;
+//	styleText_menuDevStatus->text.color = LV_COLOR_BLACK;
 
 //	objLabel_devStatus_A = lv_label_create(bGround_obj, NULL);
 //	lv_label_set_text(objLabel_devStatus_A, "switch-A:");
 //	lv_obj_set_protect(objLabel_devStatus_A, LV_PROTECT_POS);
 //	lv_obj_align(objLabel_devStatus_A, objLine_timeSet_limit_A, LV_ALIGN_OUT_BOTTOM_LEFT, 50, 40);
-//	lv_obj_set_style(objLabel_devStatus_A, &styleText_menuDevStatus);
+//	lv_obj_set_style(objLabel_devStatus_A, styleText_menuDevStatus);
 //	objLabel_devStatus_B = lv_label_create(bGround_obj, objLabel_devStatus_A);
 //	lv_label_set_text(objLabel_devStatus_B, "switch-B:");
 //	lv_obj_set_protect(objLabel_devStatus_B, LV_PROTECT_POS);
@@ -1092,10 +1123,10 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 													 (stt_devDataPonitTypedef *)&datapointReaction_temp);
 
 	objBtn_reaptSet = lv_btn_create(bGround_obj, NULL);
-    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_PR, &styleBtn_specialTransparent_pr);
-    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_TGL_REL, &styleBtn_specialTransparent_rel);
-    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_TGL_PR, &styleBtn_specialTransparent_pr);
+    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_PR, styleBtn_specialTransparent_pr);
+    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_TGL_REL, styleBtn_specialTransparent_rel);
+    lv_btn_set_style(objBtn_reaptSet, LV_BTN_STYLE_TGL_PR, styleBtn_specialTransparent_pr);
 	lv_btn_set_fit(objBtn_reaptSet, false, false);
 	(devStatusDispMethod_landscapeIf_get())?
 		(lv_obj_set_size(objBtn_reaptSet, 260, 55)):
@@ -1107,27 +1138,27 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_set_free_num(objBtn_reaptSet, LV_OBJ_FREENUM_BASE_TIMERSETINFO_NUM + timerUnit_num);
 	lv_btn_set_action(objBtn_reaptSet, LV_BTN_ACTION_CLICK, funCb_btnActionClick_btnReaptSet_funBack);
 
-	lv_style_copy(&styleText_menuReaptSet, &lv_style_plain);
-	styleText_menuReaptSet.text.font = &lv_font_dejavu_20;
-	styleText_menuReaptSet.text.color = LV_COLOR_MAKE(99, 94, 168);
+	lv_style_copy(styleText_menuReaptSet, &lv_style_plain);
+	styleText_menuReaptSet->text.font = &lv_font_dejavu_20;
+	styleText_menuReaptSet->text.color = LV_COLOR_MAKE(99, 94, 168);
 	objLabel_reaptSet = lv_label_create(objBtn_reaptSet, NULL);
-	lv_obj_set_style(objLabel_reaptSet, &styleText_menuReaptSet);
+	lv_obj_set_style(objLabel_reaptSet, styleText_menuReaptSet);
 	lv_label_set_text(objLabel_reaptSet, "repeat cycle");
 	lv_obj_set_protect(objLabel_reaptSet, LV_PROTECT_POS);
 	lv_obj_align(objLabel_reaptSet, objBtn_reaptSet, LV_ALIGN_IN_TOP_LEFT, 40 + screenLandscapeCoordinate_objOffset, 10);
 	objLabel_reaptSetT = lv_label_create(objBtn_reaptSet, NULL);
-	lv_obj_set_style(objLabel_reaptSetT, &styleText_menuReaptSet);
+	lv_obj_set_style(objLabel_reaptSetT, styleText_menuReaptSet);
 	lv_label_set_text(objLabel_reaptSetT, ">");
 	lv_obj_set_protect(objLabel_reaptSetT, LV_PROTECT_POS);
 	(devStatusDispMethod_landscapeIf_get())?
 		(lv_obj_align(objLabel_reaptSetT, objBtn_reaptSet, LV_ALIGN_IN_RIGHT_MID, -15, 0)):
 		(lv_obj_align(objLabel_reaptSetT, objBtn_reaptSet, LV_ALIGN_IN_RIGHT_MID, 0, 0));
 
-	lv_style_copy(&styleText_menuReaptRem, &lv_style_plain);
-	styleText_menuReaptRem.text.font = &lv_font_dejavu_15;
-	styleText_menuReaptRem.text.color = LV_COLOR_GRAY;
+	lv_style_copy(styleText_menuReaptRem, &lv_style_plain);
+	styleText_menuReaptRem->text.font = &lv_font_dejavu_15;
+	styleText_menuReaptRem->text.color = LV_COLOR_GRAY;
 	objLabel_reaptRem = lv_label_create(objBtn_reaptSet, NULL);
-	lv_obj_set_style(objLabel_reaptRem, &styleText_menuReaptRem);
+	lv_obj_set_style(objLabel_reaptRem, styleText_menuReaptRem);
 	lv_label_set_long_mode(objLabel_reaptRem, LV_LABEL_LONG_DOT);
 	lv_obj_set_size(objLabel_reaptRem, 130, 20);
 	memset(strTemp, 0, 31);
@@ -1147,17 +1178,17 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_set_protect(objLabel_reaptRem, LV_PROTECT_POS);
 	lv_obj_align(objLabel_reaptRem, objBtn_reaptSet, LV_ALIGN_IN_BOTTOM_LEFT, 40 + screenLandscapeCoordinate_objOffset, 0);
 
-	lv_style_copy(&styleRoller_timeSet_bg, &lv_style_plain);
-	styleRoller_timeSet_bg.body.main_color = LV_COLOR_WHITE;
-	styleRoller_timeSet_bg.body.grad_color = LV_COLOR_WHITE;
-	styleRoller_timeSet_bg.text.font = &lv_font_consola_19;
-	styleRoller_timeSet_bg.text.line_space = 5;
-	styleRoller_timeSet_bg.text.opa = LV_OPA_40;
-	lv_style_copy(&styleRoller_timeSet_sel, &lv_style_plain);
-	styleRoller_timeSet_sel.body.empty = 1;
-	styleRoller_timeSet_sel.body.radius = 30;
-	styleRoller_timeSet_sel.text.color = LV_COLOR_BLACK;
-	styleRoller_timeSet_sel.text.font = &lv_font_consola_19;
+	lv_style_copy(styleRoller_timeSet_bg, &lv_style_plain);
+	styleRoller_timeSet_bg->body.main_color = LV_COLOR_WHITE;
+	styleRoller_timeSet_bg->body.grad_color = LV_COLOR_WHITE;
+	styleRoller_timeSet_bg->text.font = &lv_font_consola_19;
+	styleRoller_timeSet_bg->text.line_space = 5;
+	styleRoller_timeSet_bg->text.opa = LV_OPA_40;
+	lv_style_copy(styleRoller_timeSet_sel, &lv_style_plain);
+	styleRoller_timeSet_sel->body.empty = 1;
+	styleRoller_timeSet_sel->body.radius = 30;
+	styleRoller_timeSet_sel->text.color = LV_COLOR_BLACK;
+	styleRoller_timeSet_sel->text.font = &lv_font_consola_19;
 
 	objRoller_timeSet_hour = lv_roller_create(bGround_obj, NULL);
 	lv_roller_set_action(objRoller_timeSet_hour, funCb_rollerOpreat_timerUnitSetHour);
@@ -1172,8 +1203,8 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_page_glue_obj(objRoller_timeSet_hour, true);
 	lv_roller_set_selected(objRoller_timeSet_hour, timerSetInfoTemp_currentUnit.tmUp_Hour, false);
 
-	lv_roller_set_style(objRoller_timeSet_hour, LV_ROLLER_STYLE_BG, &styleRoller_timeSet_bg);
-	lv_roller_set_style(objRoller_timeSet_hour, LV_ROLLER_STYLE_SEL, &styleRoller_timeSet_sel);
+	lv_roller_set_style(objRoller_timeSet_hour, LV_ROLLER_STYLE_BG, styleRoller_timeSet_bg);
+	lv_roller_set_style(objRoller_timeSet_hour, LV_ROLLER_STYLE_SEL, styleRoller_timeSet_sel);
 	lv_roller_set_visible_row_count(objRoller_timeSet_hour, 4);
 
 	objRoller_timeSet_minute = lv_roller_create(bGround_obj, NULL);
@@ -1194,25 +1225,25 @@ static void lvGui_businessMenu_timerSetUnitOpreat(lv_obj_t * obj_Parent, uint8_t
 	lv_obj_align(objRoller_timeSet_minute, objRoller_timeSet_hour, LV_ALIGN_OUT_RIGHT_TOP, 50, 0);
 	lv_roller_set_selected(objRoller_timeSet_minute, timerSetInfoTemp_currentUnit.tmUp_Minute, false);
 
-	lv_roller_set_style(objRoller_timeSet_minute, LV_ROLLER_STYLE_BG, &styleRoller_timeSet_bg);
-	lv_roller_set_style(objRoller_timeSet_minute, LV_ROLLER_STYLE_SEL, &styleRoller_timeSet_sel);
+	lv_roller_set_style(objRoller_timeSet_minute, LV_ROLLER_STYLE_BG, styleRoller_timeSet_bg);
+	lv_roller_set_style(objRoller_timeSet_minute, LV_ROLLER_STYLE_SEL, styleRoller_timeSet_sel);
 	lv_roller_set_visible_row_count(objRoller_timeSet_minute, 4);
 
-	lv_style_copy(&styleText_menuTimeSet, &lv_style_plain);
-	styleText_menuTimeSet.text.font = &lv_font_arial_15;
-	styleText_menuTimeSet.text.color = LV_COLOR_MAKE(80, 240, 80);
+	lv_style_copy(styleText_menuTimeSet, &lv_style_plain);
+	styleText_menuTimeSet->text.font = &lv_font_arial_15;
+	styleText_menuTimeSet->text.color = LV_COLOR_MAKE(80, 240, 80);
 
 	objLabel_timeSet_hour = lv_label_create(bGround_obj, NULL);
 	lv_label_set_text(objLabel_timeSet_hour, "hour");
 	lv_obj_set_protect(objLabel_timeSet_hour, LV_PROTECT_POS);
 	lv_obj_align(objLabel_timeSet_hour, objRoller_timeSet_hour, LV_ALIGN_CENTER, 35, 2);
-	lv_obj_set_style(objLabel_timeSet_hour, &styleText_menuTimeSet);
+	lv_obj_set_style(objLabel_timeSet_hour, styleText_menuTimeSet);
 
 	objLabel_timeSet_minute = lv_label_create(bGround_obj, objLabel_timeSet_hour);
 	lv_label_set_text(objLabel_timeSet_minute, "minute");
 	lv_obj_set_protect(objLabel_timeSet_minute, LV_PROTECT_POS);
 	lv_obj_align(objLabel_timeSet_minute, objRoller_timeSet_minute, LV_ALIGN_CENTER, 35, 0);
-	lv_obj_set_style(objLabel_timeSet_minute, &styleText_menuTimeSet);
+	lv_obj_set_style(objLabel_timeSet_minute, styleText_menuTimeSet);
 
 	lv_page_focus(bGround_obj, objLabel_timeSet_minute, 500);
 

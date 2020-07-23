@@ -1,13 +1,5 @@
 #include "devDriver_curtain.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "mlink.h"
 #include "mwifi.h"
 #include "mdf_common.h"
@@ -343,7 +335,7 @@ static void devDriverBussiness_curtainSwitch_periphStatusRealesBySlide(stt_devDa
 		curtainOrbitalPositionTimeSet = devParam_curtain.devRunningParam.act_period / 
 										DEVICE_CURTAIN_ORBITAL_POSITION_MAX_VAL * 
 										param->devType_curtain.devCurtain_actEnumVal;
-		printf("curtain orbital set:%d.\n", curtainOrbitalPositionTimeSet);
+//		printf("curtain orbital set:%d.\n", curtainOrbitalPositionTimeSet);
 	}
 }
 

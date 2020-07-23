@@ -1,13 +1,5 @@
 #include "bussiness_timerSoft.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/task.h"
-#include "freertos/timers.h"
-#include "freertos/semphr.h"
-#include "freertos/event_groups.h"
-#include "esp_freertos_hooks.h"
-
 #include "mlink.h"
 #include "mwifi.h"
 #include "mdf_common.h"
@@ -20,8 +12,12 @@
 #include "mechanical_bussinessOpreat.h"
 
 extern void datatransOpreation_heartbeatHold_realesRunning(void);
+extern bool screensaverDispApp_period1sRealesRunning(void);
 
 extern stt_nodeDev_hbDataManage *listHead_nodeDevDataManage;
+extern stt_nodeDev_detailInfoManage *listHead_nodeInfoDetailManage;
+extern stt_nodeObj_listManageDevCtrlBase *listHead_nodeCtrlObjBlockBaseManage;
+
 extern uint8_t devRunningTimeFromPowerUp_couter;
 extern uint8_t devRestartDelay_counter;
 extern uint8_t wifiConfigComplete_tipsStartCounter;
@@ -33,6 +29,7 @@ extern uint16_t dtCounter_preventSurge;
 extern uint16_t  pageRefreshTrig_counter;
 extern uint16_t timeCounetr_mwifiReorganize;
 extern stt_kLongPreKeepParam kPreReaptParam_unlock;
+extern stt_scrDisActAttr cntrDat_scrDis;
 
 #if(DEVICE_DRIVER_DEFINITION == DEVICE_DRIVER_METHOD_BY_SLAVE_MCU)
  #if(DRVMETHOD_BY_SLAVE_MCU_RELAY_TEST == 1)
@@ -42,6 +39,8 @@ extern stt_kLongPreKeepParam kPreReaptParam_unlock;
 #endif
 
 EventGroupHandle_t xEventGp_devApplication = NULL;
+EventGroupHandle_t xEventGp_devAppSupplemet_A = NULL;
+EventGroupHandle_t xEventGp_devBussinessHandle_A = NULL;
 xQueueHandle msgQh_systemRestartDelayCounterTips = NULL;
 
 uint32_t heartbeatPeriodVal_dynamic = DEV_HEARTBEAT_DATATRANS_PERIOD_LIMIT_MIN;
@@ -77,10 +76,12 @@ static uint8_t  tipsLoopTimer_keeperCounter = 0;
 static uint8_t  guiCtrlBlock_keeperCounter = 0;
 static uint16_t tipsCounter_fullScreen = 0;
 static uint8_t  systemRestartDelay_counter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
+static uint8_t  cycleCount_allNodeDevDetailInfoReport = 0; //设备详细信息上报可用次数
 
 static stt_timerLoop32BitCnt 	 loopTimer_devMqttLoginNotice = {DEV_MQTT_LOGIN_NOTICE_PERIOD, 0};
 static stt_timerLoop32BitCnt 	 loopTimer_devElecsumReport = {DEV_ESUMREPORT_DATATRANS_PERIOD, 0}; //mqtt电量上报计时器相关变量
 static stt_timerLoop32BitCnt_ext volatile loopTimer_devHeartbeat = {DEV_HEARTBEAT_DATATRANS_PERIOD_LIMIT_MIN, 0}; //心跳计时器相关变量
+static stt_timerLoop32BitCnt_ext volatile loopTimer_allNodeDevDetailInfoReport = {DEV_ALL_NODEDEV_DETAILINFO_REPORT_PERIOD_DEF, 0}; //设备详细信息上报计时器相关变量
 
 static struct stt_devStatusRecord_actionDelayParam{
 
@@ -90,6 +91,8 @@ static struct stt_devStatusRecord_actionDelayParam{
 }usrAppDevDpResp_delayTrigFuncParam = {0};
 
 EventGroupHandle_t xEventGp_tipsLoopTimer = NULL;
+
+static void bussinessSoftTimer_part1SecondPeriod_trigByEvt(void);
 
 void deviceParamSet_timeZone(stt_timeZone *param, bool nvsRecord_IF){
 
@@ -175,6 +178,11 @@ void usrAppDevDpResp_actionDelayTrig_funcSet(void){
 
 	usrAppDevDpResp_delayTrigFuncParam.timeCounter = DEVDP_RESPOND_ACTION_DELAY_TIME;
 	usrAppDevDpResp_delayTrigFuncParam.actionTrig_IF = 1;
+}
+
+void usrAppAllNodeDevDetailInfoReport_cycCountSet(uint8_t val){
+
+	cycleCount_allNodeDevDetailInfoReport = val;
 }
 
 static void sntp_applicationStart(void)
@@ -378,7 +386,7 @@ static void bussiness_usrApp_actTrigTimer(void){
 							default:break;
 						}
 
-						currentDev_dataPointSet(&devStatusValSet_temp, true, true, true, false);
+						currentDev_dataPointSet(&devStatusValSet_temp, true, true, true, false, true);
 					}
 				}
 			}
@@ -452,9 +460,6 @@ static void bussiness_usrApp_actTrigTimer(void){
 static void funCB_bussinessSoftTimer(void *timer){
 
 	static stt_timerLoop loopTimer_1second = {1000, 0};
-	static stt_timerLoop loopTimer5s_sntpRefresh = {5 - 1, 0};	
-	static stt_timerLoop loopTimerCst_debugPrint = {10 - 1, 0};
-	static stt_timerLoop loopTimer6s_devParamRefresh = {6 - 1, 0};
 	static stt_timerLoop loopTimer_devSelfLightDrvRefresh = {DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD, 0};
 
 	/*毫秒业务*/
@@ -468,6 +473,25 @@ static void funCB_bussinessSoftTimer(void *timer){
 	if(pageRefreshTrig_counter != COUNTER_DISENABLE_MASK_SPECIALVAL_U16){
 	
 		if(pageRefreshTrig_counter)pageRefreshTrig_counter --;
+	}
+
+	if(cntrDat_scrDis.actStatus == scrDisAct_statusDelay){ //屏幕触摸失能计时业务
+	
+		if(cntrDat_scrDis.timeDelay)cntrDat_scrDis.timeDelay --;
+		else{
+
+			cntrDat_scrDis.actStatus = scrDisAct_statusKeep;
+		}
+	}
+	else
+	if(cntrDat_scrDis.actStatus == scrDisAct_statusKeep){
+	
+		if(cntrDat_scrDis.timeKeep)cntrDat_scrDis.timeKeep --;
+		else{
+		
+			cntrDat_scrDis.actStatus = scrDisAct_statusNone;
+			cntrDat_scrDis.actComplete = 1;
+		}
 	}
 
 	devMechanicalOpreatTimeCounter_realesing(); //物理按键检测计时业务
@@ -494,6 +518,22 @@ static void funCB_bussinessSoftTimer(void *timer){
 		loopTimer_devHeartbeat.loopCounter = 0;
 	
 		xEventGroupSetBits(xEventGp_devApplication, DEVAPPLICATION_FLG_BITHOLD_HEARTBEAT);
+	}
+
+	if(loopTimer_allNodeDevDetailInfoReport.loopCounter < loopTimer_allNodeDevDetailInfoReport.loopPeriod)loopTimer_allNodeDevDetailInfoReport.loopCounter ++;
+	else{
+
+		if(cycleCount_allNodeDevDetailInfoReport){
+
+			cycleCount_allNodeDevDetailInfoReport --;
+			(esp_mesh_get_layer() == MESH_ROOT)?
+				(loopTimer_allNodeDevDetailInfoReport.loopPeriod = 20 * 1000): //主机上报周期长一点
+				(loopTimer_allNodeDevDetailInfoReport.loopPeriod = 10 * 1000);
+
+			xEventGroupSetBits(xEventGp_devApplication, DEVAPPLICATION_FLG_BITHOLD_ALLDEVDINFO_REPORT);
+				
+			loopTimer_allNodeDevDetailInfoReport.loopCounter = 0;
+		}
 	}
 
 	if(loopTimer_devElecsumReport.loopCounter < loopTimer_devElecsumReport.loopPeriod)loopTimer_devElecsumReport.loopCounter ++; //主机上报所有设备电量统计信息
@@ -540,7 +580,7 @@ static void funCB_bussinessSoftTimer(void *timer){
 				default:break;
 			}
 
-			currentDev_dataPointSet(&devStatusValSet_temp, false, false, false, false);
+			currentDev_dataPointSet(&devStatusValSet_temp, false, false, false, false, true);
 
 			if(0 == paramMagRelayTest.relayStatus_actFlg)
 				paramMagRelayTest.dataRcd.relayActLoop ++;
@@ -565,235 +605,263 @@ static void funCB_bussinessSoftTimer(void *timer){
 
 		loopTimer_1second.loopCounter = 0;
 
-		//远程升级氛围灯提示时间更新业务
-		tipsSysUpgrading_realesRunning();
+		bussinessSoftTimer_part1SecondPeriod_trigByEvt();
+	}
+}
 
-		//心跳挂起时间更新业务
-		datatransOpreation_heartbeatHold_realesRunning();
+static void bussinessSoftTimer_part1SecondPeriod_trigByEvt(void){
 
-		//设备重启，延时执行时间
-		if(devRestartDelay_counter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+	xEventGroupSetBits(xEventGp_devBussinessHandle_A, DEVBUSSINESS_A_FLG_BITHOLD_PSECEVT_HANDLE);
+}
 
-			if(devRestartDelay_counter){
+void bussinessSoftTimer_part1SecondPeriod_entity(void){
 
-				devRestartDelay_counter --;
+	static stt_timerLoop loopTimer15s_sntpRefresh = {15 - 1, 0};	
+	static stt_timerLoop loopTimerCst_debugPrint = {10 - 1, 0};
+	static stt_timerLoop loopTimer10s_devParamRefresh = {10 - 1, 0};
 
-				xQueueSend(msgQh_systemRestartDelayCounterTips, &devRestartDelay_counter, 1 / portTICK_PERIOD_MS);
-			}
-			else
-			{
-				devRestartDelay_counter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
-				printf("system restart now!.\n");
-				esp_restart();
-			}
-		}
+	//远程升级氛围灯提示时间更新业务
+	tipsSysUpgrading_realesRunning();
 
-		//wifi配置成功，提示时间
-		if(wifiConfigComplete_tipsStartCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+	//心跳挂起时间更新业务
+	datatransOpreation_heartbeatHold_realesRunning();
 
-			if(wifiConfigComplete_tipsStartCounter){
+#if(SCREENSAVER_RUNNING_ENABLE == 1)
 
-				wifiConfigComplete_tipsStartCounter --;
-			}
-			else
-			{
-				extern void lvGui_wifiConfig_bussiness_configComplete_tipsOver(void);
-			
-				wifiConfigComplete_tipsStartCounter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
-				lvGui_wifiConfig_bussiness_configComplete_tipsOver();
-			}
-		}
+	//疫情显示相关时间更新业务
+	if(true == screensaverDispApp_period1sRealesRunning()){
 
-		if(kPreReaptParam_unlock.counterDN){
+		xEventGroupSetBits(xEventGp_devApplication, DEVAPPLICATION_FLG_EPIDEMIC_DATA_REQ);	
+	}
+#endif
 
-			kPreReaptParam_unlock.counterDN --;
-			kPreReaptParam_unlock.counterUP ++;
+	//设备重启，延时执行时间
+	if(devRestartDelay_counter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+
+		if(devRestartDelay_counter){
+
+			devRestartDelay_counter --;
+
+			xQueueSend(msgQh_systemRestartDelayCounterTips, &devRestartDelay_counter, 1 / portTICK_PERIOD_MS);
 		}
 		else
 		{
-			kPreReaptParam_unlock.counterUP = 0;
+			devRestartDelay_counter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
+			printf("system restart now!.\n");
+			esp_restart();
 		}
+	}
 
-		//wifi配置时，扫描时间
-		if(wifiConfigOpreat_scanningTimeCounter)wifiConfigOpreat_scanningTimeCounter --;
+	//wifi配置成功，提示时间
+	if(wifiConfigComplete_tipsStartCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
 
-		//设备启动时间计时
-		if(devRunningTimeFromPowerUp_couter < (L8_DEV_LISTMANAGE_REALES_CONFIRM + 10))devRunningTimeFromPowerUp_couter ++;
+		if(wifiConfigComplete_tipsStartCounter){
 
-		//wifi配置失败，刷新二维码倒计时
-		if(wifiConfigOpreat_comfigFailCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8)
-			if(wifiConfigOpreat_comfigFailCounter)wifiConfigOpreat_comfigFailCounter --;
+			wifiConfigComplete_tipsStartCounter --;
+		}
+		else
+		{
+			extern void lvGui_wifiConfig_bussiness_configComplete_tipsOver(void);
+		
+			wifiConfigComplete_tipsStartCounter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
+			lvGui_wifiConfig_bussiness_configComplete_tipsOver();
+		}
+	}
 
-		//debug信息周期性打印业务
-		if(loopTimerCst_debugPrint .loopCounter < loopTimerCst_debugPrint .loopPeriod)loopTimerCst_debugPrint .loopCounter ++;
+	if(kPreReaptParam_unlock.counterDN){
+
+		kPreReaptParam_unlock.counterDN --;
+		kPreReaptParam_unlock.counterUP ++;
+	}
+	else
+	{
+		kPreReaptParam_unlock.counterUP = 0;
+	}
+
+	//wifi配置时，扫描时间
+	if(wifiConfigOpreat_scanningTimeCounter)wifiConfigOpreat_scanningTimeCounter --;
+
+	//设备启动时间计时
+	if(devRunningTimeFromPowerUp_couter < (L8_DEV_LISTMANAGE_REALES_CONFIRM + 10))devRunningTimeFromPowerUp_couter ++;
+
+	//wifi配置失败，刷新二维码倒计时
+	if(wifiConfigOpreat_comfigFailCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8)
+		if(wifiConfigOpreat_comfigFailCounter)wifiConfigOpreat_comfigFailCounter --;
+
+	//debug信息周期性打印业务
+	if(loopTimerCst_debugPrint .loopCounter < loopTimerCst_debugPrint .loopPeriod)loopTimerCst_debugPrint .loopCounter ++;
+	else{
+
+		loopTimerCst_debugPrint .loopCounter = 0;
+
+//		printf("timer0 Info: H-%d, M-%d, bithold:%d.\n", usrApp_trigTimerGroup[0].tmUp_Hour,
+//														 usrApp_trigTimerGroup[0].tmUp_Minute,
+//														 usrApp_trigTimerGroup[0].tmUp_weekBitHold);
+	}
+
+	//子节点设备信息链表管理
+	L8devHbDataManageList_bussinessKeepAliveManagePeriod1s(listHead_nodeDevDataManage, 
+														   listHead_nodeInfoDetailManage,
+														   listHead_nodeCtrlObjBlockBaseManage);
+
+	//设备本地时间自更新业务 --针对设备离线，无法获取sntp时间
+	if(devSysTimeKeep_counter < 3600){
+
+		
+
+	}else{ //仅进行时、分、周，业务计算
+
+		devSysTimeKeep_counter = 0;
+
+		if(devSystemTime_current.time_Hour >= 23){
+
+			devSystemTime_current.time_Hour = 0;
+			(devSystemTime_current.time_Week > 7)?(devSystemTime_current.time_Week = 1):(devSystemTime_current.time_Week ++);
+		
+		}else{
+
+			devSystemTime_current.time_Hour ++;
+		}
+	}
+
+	devSystemTime_current.time_Minute = devSysTimeKeep_counter / 60;
+	devSystemTime_current.time_Second = devSysTimeKeep_counter % 60;
+
+	//设备关键参数周期性读取更新
+	if(loopTimer10s_devParamRefresh.loopCounter < loopTimer10s_devParamRefresh.loopPeriod)loopTimer10s_devParamRefresh.loopCounter ++;
+	else{
+
+		loopTimer10s_devParamRefresh.loopCounter = 0;
+
+		devMeshSignalVal_Reales();
+		devMeshNodeNum_Reales();
+	}
+
+	//普通定时业务更新
+	bussiness_usrApp_actTrigTimer();
+
+	//提示性图标显示时间
+	if(tipsLoopTimer_keeperCounter)tipsLoopTimer_keeperCounter --;
+
+	if(guiCtrlBlock_keeperCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+
+		if(guiCtrlBlock_keeperCounter){
+			
+			guiCtrlBlock_keeperCounter --;
+			
+			devScreenBkLight_weakUp(); //UI阻塞时一直亮屏
+		}
+		else
+		{
+			xEventGroupSetBits(xEventGp_tipsLoopTimer, LOOPTIMEREVENT_FLG_BITHOLD_GUI_BLOCKCEL);
+
+			guiCtrlBlock_keeperCounter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
+		}
+	}
+
+	if(tipsCounter_fullScreen != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+
+		if(tipsCounter_fullScreen){
+
+			tipsCounter_fullScreen --;
+
+			devScreenBkLight_weakUp(); //UI阻塞时一直亮屏
+		}
+		else
+		{
+			xEventGroupSetBits(xEventGp_tipsLoopTimer, LOOPTIMEREVENT_FLG_BITHOLD_FS_TIPS_CEL);
+		
+			tipsCounter_fullScreen = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
+		}
+	}
+
+	if(systemRestartDelay_counter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+
+		if(systemRestartDelay_counter)systemRestartDelay_counter --;
 		else{
 
-			loopTimerCst_debugPrint .loopCounter = 0;
+			usrApplication_systemRestartTrig(15);
 
-//			printf("timer0 Info: H-%d, M-%d, bithold:%d.\n", usrApp_trigTimerGroup[0].tmUp_Hour,
-//															 usrApp_trigTimerGroup[0].tmUp_Minute,
-//															 usrApp_trigTimerGroup[0].tmUp_weekBitHold);
+			systemRestartDelay_counter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
 		}
+	}
 
-		//子节点设备信息链表管理
-		L8devHbDataManageList_bussinessKeepAliveManagePeriod1s(listHead_nodeDevDataManage);
+	//非home界面显示超时计时
+	if(homepageRecovery_timeoutCounter)homepageRecovery_timeoutCounter --;
 
-		//设备本地时间自更新业务 --针对设备离线，无法获取sntp时间
-		if(devSysTimeKeep_counter < 3600){
+	//设备状态信息存储 动作延迟业务
+	if(usrAppDevDpResp_delayTrigFuncParam.actionTrig_IF){
 
-			
-		
-		}else{ //仅进行时、分、周，业务计算
-		
-			devSysTimeKeep_counter = 0;
-
-			if(devSystemTime_current.time_Hour >= 23){
-
-				devSystemTime_current.time_Hour = 0;
-				(devSystemTime_current.time_Week > 7)?(devSystemTime_current.time_Week = 1):(devSystemTime_current.time_Week ++);
-			
-			}else{
-
-				devSystemTime_current.time_Hour ++;
-			}
-		}
-
-		devSystemTime_current.time_Minute = devSysTimeKeep_counter / 60;
-		devSystemTime_current.time_Second = devSysTimeKeep_counter % 60;
-
-		//设备关键参数周期性读取更新
-		if(loopTimer6s_devParamRefresh.loopCounter < loopTimer6s_devParamRefresh.loopPeriod)loopTimer6s_devParamRefresh.loopCounter ++;
+		if(usrAppDevDpResp_delayTrigFuncParam.timeCounter)usrAppDevDpResp_delayTrigFuncParam.timeCounter --;
 		else{
 
-			loopTimer6s_devParamRefresh.loopCounter = 0;
+			usrAppDevDpResp_delayTrigFuncParam.actionTrig_IF = 0; //触发标志清零
 
-			devMeshSignalVal_Reales();
-			devMeshNodeNum_Reales();
+			devDriverApp_responseAtionTrig_delay(); //设备数据点操作延时响应动作触发
 		}
+	}
 
-		//普通定时业务更新
-		bussiness_usrApp_actTrigTimer();
+	//屏幕运行参数设置 存储动作延迟检测业务
+	devScreenDriver_configParamSave_actionDetect();
 
-		//提示性图标显示时间
-		if(tipsLoopTimer_keeperCounter)tipsLoopTimer_keeperCounter --;
+	//温度校准参数设置 存储动作延迟检测业务
+	devTempratureSensor_configParamSave_actionDetect();
 
-		if(guiCtrlBlock_keeperCounter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
+	//sntp状态刷新业务
+	if(loopTimer15s_sntpRefresh.loopCounter < loopTimer15s_sntpRefresh.loopPeriod)loopTimer15s_sntpRefresh.loopCounter ++;
+	else{
 
-			if(guiCtrlBlock_keeperCounter){
-				
-				guiCtrlBlock_keeperCounter --;
-				
-				devScreenBkLight_weakUp(); //UI阻塞时一直亮屏
-			}
-			else
-			{
-				xEventGroupSetBits(xEventGp_tipsLoopTimer, LOOPTIMEREVENT_FLG_BITHOLD_GUI_BLOCKCEL);
+		loopTimer15s_sntpRefresh.loopCounter = 0;
 
-				guiCtrlBlock_keeperCounter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
-			}
-		}
+//		printf("sntp refresh.\n");
 
-		if(tipsCounter_fullScreen != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
-		
-			if(tipsCounter_fullScreen){
+		ESP_LOGI(TAG, "DEV time: %04d/%02d/%02d -W_%d %02d:%02d:%02d.\n", devSystemTime_current.time_Year,
+																		  devSystemTime_current.time_Month,
+																		  devSystemTime_current.time_Day,
+																		  devSystemTime_current.time_Week,
+																		  devSystemTime_current.time_Hour,
+																		  devSystemTime_current.time_Minute,
+																		  devSystemTime_current.time_Second);
 
-				tipsCounter_fullScreen --;
+		if(flgGet_gotRouterOrMeshConnect() && (esp_mesh_get_layer() == MESH_ROOT)){
 
-				devScreenBkLight_weakUp(); //UI阻塞时一直亮屏
-			}
-			else
-			{
-				xEventGroupSetBits(xEventGp_tipsLoopTimer, LOOPTIMEREVENT_FLG_BITHOLD_FS_TIPS_CEL);
-			
-				tipsCounter_fullScreen = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
-			}
-		}
-
-		if(systemRestartDelay_counter != COUNTER_DISENABLE_MASK_SPECIALVAL_U8){
-
-			if(systemRestartDelay_counter)systemRestartDelay_counter --;
+			if(!flg_stnp_running)sntp_applicationStart();
 			else{
 
-				usrApplication_systemRestartTrig(15);
+				char strftime_buf[64];
 
-				systemRestartDelay_counter = COUNTER_DISENABLE_MASK_SPECIALVAL_U8;
-			}
-		}
-
-		//非home界面显示超时计时
-		if(homepageRecovery_timeoutCounter)homepageRecovery_timeoutCounter --;
-
-		//设备状态信息存储 动作延迟业务
-		if(usrAppDevDpResp_delayTrigFuncParam.actionTrig_IF){
-
-			if(usrAppDevDpResp_delayTrigFuncParam.timeCounter)usrAppDevDpResp_delayTrigFuncParam.timeCounter --;
-			else{
-
-				usrAppDevDpResp_delayTrigFuncParam.actionTrig_IF = 0; //触发标志清零
-
-				devDriverApp_responseAtionTrig_delay(); //设备数据点操作延时响应动作触发
-			}
-		}
-
-		//屏幕运行参数设置 存储动作延迟检测业务
-		devScreenDriver_configParamSave_actionDetect();
-
-		//sntp状态刷新业务
-		if(loopTimer5s_sntpRefresh.loopCounter < loopTimer5s_sntpRefresh.loopPeriod)loopTimer5s_sntpRefresh.loopCounter ++;
-		else{
-
-			loopTimer5s_sntpRefresh.loopCounter = 0;
-
-//			printf("sntp refresh.\n");
-
-			ESP_LOGI(TAG, "DEV time: %04d/%02d/%02d -W_%d %02d:%02d:%02d.\n", devSystemTime_current.time_Year,
-																			  devSystemTime_current.time_Month,
-																			  devSystemTime_current.time_Day,
-																			  devSystemTime_current.time_Week,
-																			  devSystemTime_current.time_Hour,
-																			  devSystemTime_current.time_Minute,
-																			  devSystemTime_current.time_Second);
-
-			if(flgGet_gotRouterOrMeshConnect() && (esp_mesh_get_layer() == MESH_ROOT)){
-
-				if(!flg_stnp_running)sntp_applicationStart();
-				else{
-
-					char strftime_buf[64];
-
-					time(&timeNow);
-					// Set timezone to China Standard Time
-					setenv("TZ", "CST-0", 1);
-					tzset();
-					localtime_r(&timeNow, &timeInfo);
-					strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeInfo);
+				time(&timeNow);
+				// Set timezone to China Standard Time
+				setenv("TZ", "CST-0", 1);
+				tzset();
+				localtime_r(&timeNow, &timeInfo);
+				strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeInfo);
+				
+				if(timeNow){
+				
+					if(devSystemTimeZone.timeZone_H <= 12){
 					
-					if(timeNow){
+						timeNow += (3600UL * (long)devSystemTimeZone.timeZone_H + 60UL * (long)devSystemTimeZone.timeZone_M); //时区正
+						
+					}else
+					if(devSystemTimeZone.timeZone_H > 12 && devSystemTimeZone.timeZone_H <= 24){
 					
-						if(devSystemTimeZone.timeZone_H <= 12){
+						timeNow -= (3600UL * (long)(devSystemTimeZone.timeZone_H - 12) + 60UL * (long)devSystemTimeZone.timeZone_M); //时区负
 						
-							timeNow += (3600UL * (long)devSystemTimeZone.timeZone_H + 60UL * (long)devSystemTimeZone.timeZone_M); //时区正
-							
-						}else
-						if(devSystemTimeZone.timeZone_H > 12 && devSystemTimeZone.timeZone_H <= 24){
+					}else
+					if(devSystemTimeZone.timeZone_H == 30 || devSystemTimeZone.timeZone_H == 31){ 
 						
-							timeNow -= (3600UL * (long)(devSystemTimeZone.timeZone_H - 12) + 60UL * (long)devSystemTimeZone.timeZone_M); //时区负
-							
-						}else
-						if(devSystemTimeZone.timeZone_H == 30 || devSystemTimeZone.timeZone_H == 31){ 
-							
-							timeNow += (3600UL * (long)(devSystemTimeZone.timeZone_H - 17) + 60UL * (long)devSystemTimeZone.timeZone_M); //时区特殊
-						}
+						timeNow += (3600UL * (long)(devSystemTimeZone.timeZone_H - 17) + 60UL * (long)devSystemTimeZone.timeZone_M); //时区特殊
 					}
-					localtime_r(&timeNow, &timeInfo);
-					devSystimeRealesFromSntp(timeInfo);
-					ESP_LOGI(TAG, "UTC time: %s", strftime_buf);
 				}
+				localtime_r(&timeNow, &timeInfo);
+				devSystimeRealesFromSntp(timeInfo);
+				ESP_LOGI(TAG, "UTC time: %s", strftime_buf);
 			}
-			else
-			{
-				if(flg_stnp_running)sntp_applicationStop();
-			}
+		}
+		else
+		{
+			if(flg_stnp_running)sntp_applicationStop();
 		}
 	}
 }
@@ -837,6 +905,8 @@ void usrApp_bussinessSoftTimer_Init(void){
 
 	xEventGp_tipsLoopTimer = xEventGroupCreate();
 	xEventGp_devApplication = xEventGroupCreate();
+	xEventGp_devAppSupplemet_A =  xEventGroupCreate();
+	xEventGp_devBussinessHandle_A = xEventGroupCreate();
 	msgQh_systemRestartDelayCounterTips = xQueueCreate(2, sizeof(uint8_t)); //消息数据为当前倒计时时间
 }
 

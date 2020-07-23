@@ -6,9 +6,7 @@
 
 #include <stdio.h>
 #include "esp_types.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
+
 #include "soc/timer_group_struct.h"
 #include "driver/periph_ctrl.h"
 #include "driver/timer.h"
@@ -122,6 +120,8 @@ static stt_devScreenRunningParam devScreenConfigParam = {
 };
 static stt_devBeepRunningParam devBeepRunningParam = {0};
 
+static stt_devAtmosLightRunningParam devAtmosLightRunningParam = {0};
+
 static uint8_t  devScreenConfigParam_nvsSave_timeDelay_count = 0;	//存储延迟计时变量
 static uint32_t timePeriod_devScreenBkLight_shutDown = DEVVALUE_DEFAULT_PERIOD_SCRBKLT_WEAKDOWN + DEVVALUE_DEFAULT_SCRBKLT_SHUTDOWN_TIMEDELAY; //屏幕全灭灭活检测计时变量
 static uint32_t timeCounter_devScreenBkLight_keepAlive = 0; //屏幕背光活力计时器变量
@@ -132,7 +132,7 @@ static enum_screenBkLight_status devScreenBklightCurrent_status = screenBkLight_
 static enum_atmosphereLightType devAtmosphereCurrent_status = atmosphereLightType_normalWithoutNet;
 static enum_atmosphereLightType devAtmosphereStatus_record = atmosphereLightType_none;
 
-static uint16_t tpisCounter_systemUpgrading = 0;
+static uint16_t tpisCounter_systemWarning = 0;
 
 static const ledc_channel_config_t devBeeps_pwmCfgParam = {
 
@@ -349,25 +349,30 @@ enum_screenBkLight_status devScreenBkLight_brightnessGet(void){
 	return devScreenBklightCurrent_status;
 }
 
+void tipsOpreatSet_sysWarning(uint16_t valSet){
+
+	tpisCounter_systemWarning = valSet;
+}
+
 void tipsOpreatSet_sysUpgrading(uint16_t valSet){
 
-	tpisCounter_systemUpgrading = valSet;
+	tpisCounter_systemWarning = valSet;
 }
 
 void tipsOpreatAutoSet_sysUpgrading(void){
 
 	uint8_t meshNodeNum = (uint8_t)esp_mesh_get_total_node_num();
 
-	if(meshNodeNum < 30)tpisCounter_systemUpgrading = 180;
+	if(meshNodeNum < 30)tpisCounter_systemWarning = 180;
 	else{
 
-		tpisCounter_systemUpgrading = meshNodeNum / 10 * 60; //每10个一分钟
+		tpisCounter_systemWarning = meshNodeNum / 10 * 60; //每10个一分钟
 	}
 }
 
 void tipsSysUpgrading_realesRunning(void){
 
-	if(tpisCounter_systemUpgrading)tpisCounter_systemUpgrading --;
+	if(tpisCounter_systemWarning)tpisCounter_systemWarning --;
 }
 
 void devBeepTips_trig(uint8_t tones, 
@@ -518,11 +523,9 @@ void devAcoustoOptic_statusRefresh(void){
 
 	//关键状态自检业务
 	switch(devAtmosphereCurrent_status){ 
-			
-		case atmosphereLightType_dataSaveOpreat:{
 
-
-		}break;
+		case atmosphereLightType_idleCfgPreview:{}break;
+		case atmosphereLightType_dataSaveOpreat:{}break;
 	
 		default:{
 
@@ -570,7 +573,7 @@ void devAcoustoOptic_statusRefresh(void){
 
 			if(linkageConfigParamGet_temp.linkageReaction_proxmity_trigEn){
 
-				currentDev_dataPointSet(&(linkageConfigParamGet_temp.linkageReaction_proxmity_swVal), true, true, true, false);
+				currentDev_dataPointSet(&(linkageConfigParamGet_temp.linkageReaction_proxmity_swVal), true, true, true, false, false);
 			}
 		}
 	}
@@ -597,7 +600,7 @@ void devAcoustoOptic_statusRefresh(void){
 	}
 
 	//氛围灯业务
-	if(tpisCounter_systemUpgrading){ //升级提示 --强优先
+	if(tpisCounter_systemWarning){ //升级提示 --强优先
 	
 		static bool lightFlash_statusRecord = false;
 
@@ -605,6 +608,7 @@ void devAcoustoOptic_statusRefresh(void){
 
 		if(lightFlash_statusRecord){
 
+			DEVLEDC_ATMOSPHERELED_COLORSET(0, 0, 0);
 			DEVLEDC_ATMOSPHERELED_COLORCHG(255, 0, 0);
 		}
 		else
@@ -620,7 +624,7 @@ void devAcoustoOptic_statusRefresh(void){
 	
 				devNightmodeFlg_record = true;
 	
-				DEVLEDC_ATMOSPHERELED_COLORCHG(0, 0, 0);
+				DEVLEDC_ATMOSPHERELED_COLORSET(0, 0, 0);
 			}
 		}
 		else //非夜间模式氛围灯有效
@@ -629,43 +633,86 @@ void devAcoustoOptic_statusRefresh(void){
 
 			if(screenBkLight_shutDownFLG){ //触摸已被释放
 
-				const uint8_t tabSin[] = {
-
-					0, 17, 34, 52, 69, 87, 104, 121, 139, 156, 173, 190, 207, 224, 241, 255
-				};
 				const uint8_t breathActPeriod = 10;
 				static struct stt_paramBreath{
-
+				
 					uint8_t counter;
 					uint8_t period;
 					uint8_t dir:1;
-				}breathCounter = {0, 10};
-				static uint8_t random[3] = {0};
+				}breathCounter = {0, 10, 0};
 				uint16_t bLight_temp[3] = {0};
 				uint8_t loop;
 
-				if(breathCounter.counter < breathCounter.period)breathCounter.counter ++;
-				else{
+				if(devAtmosLightRunningParam.runingAsCustomCfg_flg){ //是否运行用户配置
 
-					breathCounter.counter = 0;
-					breathCounter.dir = !breathCounter.dir;
+					if(devAtmosLightRunningParam.customCfg_breathIf){ //是否呼吸
 
-					if(breathCounter.dir){
+						if(breathCounter.counter < breathCounter.period)breathCounter.counter ++;
+						else{
 
-						for(loop = 0; loop < 3; loop ++)random[loop] = (uint8_t)(esp_random() % 16);
-						bLight_temp[0] = tabSin[random[0]] / 4 * 2;
-						bLight_temp[1] = tabSin[random[1]] / 4 * 3;
-						bLight_temp[2] = tabSin[random[2]] / 4 * 4;
-						DEVLEDC_ATMOSPHERELED_COLORCHG_X(bLight_temp[0],
-														 bLight_temp[1],
-														 bLight_temp[2],
-														 DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
-						breathCounter.period = breathActPeriod; 
+							breathCounter.counter = 0;
+							breathCounter.dir = !breathCounter.dir;
+
+							if(breathCounter.dir){
+
+								bLight_temp[0] = devAtmosLightRunningParam.lightColorCustomParamcfg.red << 3;
+								bLight_temp[1] = devAtmosLightRunningParam.lightColorCustomParamcfg.green << 2;
+								bLight_temp[2] = devAtmosLightRunningParam.lightColorCustomParamcfg.blue << 3;
+								DEVLEDC_ATMOSPHERELED_COLORCHG_X(bLight_temp[0],
+																 bLight_temp[1],
+																 bLight_temp[2],
+																 DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
+								breathCounter.period = breathActPeriod; 
+							}
+							else
+							{
+								DEVLEDC_ATMOSPHERELED_COLORCHG_X(0, 0, 0, DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
+								breathCounter.period = breathActPeriod * 3; 
+							}
+						}
 					}
 					else
 					{
-						DEVLEDC_ATMOSPHERELED_COLORCHG_X(0, 0, 0, DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
-						breathCounter.period = breathActPeriod * 3; 
+						static lv_color_t colorLocal_rcd = {0};
+
+						if(memcmp(&colorLocal_rcd, &devAtmosLightRunningParam.lightColorCustomParamcfg, sizeof(lv_color_t))){
+
+							memcpy(&colorLocal_rcd, &devAtmosLightRunningParam.lightColorCustomParamcfg, sizeof(lv_color_t));
+							DEVLEDC_ATMOSPHERELED_COLORSET((colorLocal_rcd.red << 3), (colorLocal_rcd.green << 2), (colorLocal_rcd.blue << 3)); //rgb565
+						}
+					}
+				}
+				else //自动运行出厂配置
+				{
+					const uint8_t tabSin[] = {
+					
+						0, 17, 34, 52, 69, 87, 104, 121, 139, 156, 173, 190, 207, 224, 241, 255
+					};
+					static uint8_t random[3] = {0};
+				
+					if(breathCounter.counter < breathCounter.period)breathCounter.counter ++;
+					else{
+
+						breathCounter.counter = 0;
+						breathCounter.dir = !breathCounter.dir;
+
+						if(breathCounter.dir){
+
+							for(loop = 0; loop < 3; loop ++)random[loop] = (uint8_t)(esp_random() % 16);
+							bLight_temp[0] = tabSin[random[0]] / 4 * 2;
+							bLight_temp[1] = tabSin[random[1]] / 4 * 3;
+							bLight_temp[2] = tabSin[random[2]] / 4 * 4;
+							DEVLEDC_ATMOSPHERELED_COLORCHG_X(bLight_temp[0],
+															 bLight_temp[1],
+															 bLight_temp[2],
+															 DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
+							breathCounter.period = breathActPeriod; 
+						}
+						else
+						{
+							DEVLEDC_ATMOSPHERELED_COLORCHG_X(0, 0, 0, DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD * (breathActPeriod - 1));
+							breathCounter.period = breathActPeriod * 3; 
+						}
 					}
 				}
 
@@ -673,6 +720,10 @@ void devAcoustoOptic_statusRefresh(void){
 			}
 			else //触摸占用
 			{
+				extern void paramCfgTemp_ALCScolor_get(lv_color_t *c);
+			
+				uint16_t bLight_temp[3] = {0};
+
 				if(devAtmosphereStatus_record != devAtmosphereCurrent_status){ //转场效果
 			
 					devAtmosphereStatus_record = devAtmosphereCurrent_status;
@@ -685,6 +736,20 @@ void devAcoustoOptic_statusRefresh(void){
 			
 							atmosphereLight_transitionCount = 2 * (DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD / DEVDRIVER_DEVSELFLIGHT_REFRESH_PERIOD);
 						
+						}break;
+
+						case atmosphereLightType_idleCfgPreview:{ //不转场
+
+							lv_color_t colorTemp = {0};
+
+							paramCfgTemp_ALCScolor_get(&colorTemp);
+
+							bLight_temp[0] = colorTemp.red << 3;
+							bLight_temp[1] = colorTemp.green << 2;
+							bLight_temp[2] = colorTemp.blue << 3;
+							DEVLEDC_ATMOSPHERELED_COLORCHG(bLight_temp[0],
+														   bLight_temp[1],
+														   bLight_temp[2]);
 						}break;
 						
 						case atmosphereLightType_dataSaveOpreat:{
@@ -843,6 +908,29 @@ void devAcoustoOptic_statusRefresh(void){
 														   atmosphere_colorTab[2].colorDuty_g,
 														   atmosphere_colorTab[2].colorDuty_b);
 						}break;
+
+						case atmosphereLightType_idleCfgPreview:{
+					
+							static lv_color_t colorLocal_rcd = {0};
+							lv_color_t colorTemp = {0};
+
+							paramCfgTemp_ALCScolor_get(&colorTemp);
+
+							bLight_temp[0] = colorTemp.red << 3;
+							bLight_temp[1] = colorTemp.green << 2;
+							bLight_temp[2] = colorTemp.blue << 3;
+
+							if(memcmp(&colorLocal_rcd, &colorTemp, sizeof(lv_color_t))){
+
+//								printf("r:%d, g:%d, b:%d.\n", colorTemp.red, colorTemp.green, colorTemp.blue);
+					
+								memcpy(&colorLocal_rcd, &colorTemp, sizeof(lv_color_t));
+								DEVLEDC_ATMOSPHERELED_COLORCHG(bLight_temp[0],
+															   bLight_temp[1],
+															   bLight_temp[2]);
+							}
+
+						}break;
 							
 						case atmosphereLightType_dataSaveOpreat:{
 			
@@ -864,10 +952,14 @@ void devAcoustoOptic_statusRefresh(void){
 						}break;
 					}
 				}
-
 			}
 		}
 	}
+}
+
+enum_atmosphereLightType devAtmosphere_statusTips_trigGet(void){
+
+	return devAtmosphereCurrent_status;
 }
 
 void devAtmosphere_statusTips_trigSet(enum_atmosphereLightType tipsType){
@@ -954,6 +1046,19 @@ void devScreenDriver_configParam_set(stt_devScreenRunningParam *param, bool nvsR
 
 	if(nvsRecord_IF)
 		devScreenConfigParam_nvsSave_timeDelay_count = DEVDRIVER_DEVSELFLIGHT_SCR_PARAMSAVE_TIMEDELAY;
+}
+
+void devAtmosLight_runningParam_get(stt_devAtmosLightRunningParam *param){
+
+	memcpy(param, &devAtmosLightRunningParam, sizeof(stt_devAtmosLightRunningParam));
+}
+
+void devAtmosLight_runningParam_set(stt_devAtmosLightRunningParam *param, bool nvsRecord_IF){
+
+	memcpy(&devAtmosLightRunningParam, param, sizeof(stt_devAtmosLightRunningParam));
+
+	if(nvsRecord_IF)
+		devSystemInfoLocalRecord_save(saveObj_devDriver_atmosLightRunningParam_set, &devAtmosLightRunningParam);
 }
 
 void bussiness_devLight_testApp(void)

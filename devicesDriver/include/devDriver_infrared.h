@@ -65,6 +65,9 @@ void devDriverBussiness_infraredSwitch_moudleInit(void);
 void devDriverBussiness_infraredSwitch_moudleDeinit(void);
 void devDriverBussiness_infraredSwitch_periphStatusReales(stt_devDataPonitTypedef *param);
 
+float devDriverBussiness_tempMeasureByDs18b20_get(void);
+void devDriverBussiness_tempMeasureByDs18b20_getByHex(stt_devTempParam2Hex *param);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
